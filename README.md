@@ -198,10 +198,8 @@ script_maker/
 
 ### Variáveis de Produção
 Certifique-se de configurar:
-- `OPENAI_API_KEY`
 - `DATABASE_URL`
-- `NEXT_PUBLIC_APP_URL`
-- Configurações SMTP (se usar envio)
+- `ENCRYPTION_KEY`
 
 ## 🔧 Comandos Úteis
 
