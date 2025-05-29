@@ -1,0 +1,221 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model EmailScript {
+  id                String   @id @default(cuid())
+  subject           String   @db.VarChar(255)
+  body              String   @db.Text
+  
+  // Referência ao contato (opcional)
+  contactId         String?
+  contact           Contact? @relation(fields: [contactId], references: [id])
+  
+  // Dados do prospect
+  contactName       String   @db.VarChar(100)
+  companyName       String   @db.VarChar(100)
+  niche             String   @db.VarChar(100)
+  position          String?  @db.VarChar(100)
+  email             String?  @db.VarChar(100)
+  phone             String?  @db.VarChar(20)
+  website           String?  @db.VarChar(255)
+  painPoints        String?  @db.Text
+  previousInteraction String? @db.Text
+  notes             String?  @db.Text
+  
+  // Configurações do email
+  emailType         EmailType
+  tone              Tone
+  length            Length
+  callToAction      String   @db.VarChar(255)
+  
+  // Relações
+  sentEmails        EmailSent[]
+  
+  // Metadados
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@map("email_scripts")
+}
+
+model Settings {
+  id                String   @id @default(cuid())
+  
+  // Configurações da OpenAI
+  openaiApiKeyHash  String?  @db.VarChar(255)
+  openaiModel       String   @default("gpt-4o-mini") @db.VarChar(50)
+  
+  // Preferências gerais
+  defaultTone       Tone     @default(professional)
+  defaultLength     Length   @default(medium)
+  autoSaveScripts   Boolean  @default(true)
+  
+  // Configurações SMTP
+  smtpHost          String?  @db.VarChar(255)
+  smtpPort          Int?     @default(587)
+  smtpUsername      String?  @db.VarChar(255)
+  smtpPasswordHash  String?  @db.VarChar(255)
+  smtpSecure        Boolean  @default(true)
+  smtpFromEmail     String?  @db.VarChar(255)
+  smtpFromName      String?  @db.VarChar(100)
+  
+  // Configurações de email
+  emailSignature    String?  @db.Text
+  trackEmailOpens   Boolean  @default(false)
+  trackEmailClicks  Boolean  @default(false)
+  
+  // Metadados
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@map("settings")
+}
+
+model EmailTemplate {
+  id            String      @id @default(cuid())
+  name          String      @db.VarChar(100)
+  description   String?     @db.Text
+  subject       String      @db.VarChar(255)
+  htmlContent   String      @db.LongText
+  category      EmailType?
+  isActive      Boolean     @default(true)
+  
+  // Relações
+  sentEmails    EmailSent[]
+  
+  // Metadados
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  @@map("email_templates")
+}
+
+model Contact {
+  id                String   @id @default(cuid())
+  
+  // Dados básicos do contato
+  name              String   @db.VarChar(100)
+  email             String   @db.VarChar(100)
+  phone             String?  @db.VarChar(20)
+  position          String?  @db.VarChar(100)
+  
+  // Dados da empresa
+  companyName       String   @db.VarChar(100)
+  website           String?  @db.VarChar(255)
+  niche             String?  @db.VarChar(100)
+  
+  // Dados comerciais
+  painPoints        String?  @db.Text
+  previousInteraction String? @db.Text
+  notes             String?  @db.Text
+  
+  // Status do contato
+  isActive          Boolean  @default(true)
+  
+  // Relações
+  scripts           EmailScript[]
+  sentEmails        EmailSent[]
+  
+  // Metadados
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@map("contacts")
+}
+
+model EmailSent {
+  id                String       @id @default(cuid())
+  
+  // Referências
+  contactId         String
+  contact           Contact      @relation(fields: [contactId], references: [id])
+  scriptId          String?
+  script            EmailScript? @relation(fields: [scriptId], references: [id])
+  templateId        String?
+  template          EmailTemplate? @relation(fields: [templateId], references: [id])
+  
+  // Dados do email enviado
+  toEmail           String       @db.VarChar(255)
+  toName            String       @db.VarChar(100)
+  subject           String       @db.VarChar(255)
+  htmlContent       String       @db.LongText
+  textContent       String?      @db.Text
+  
+  // Configurações SMTP usadas
+  fromEmail         String       @db.VarChar(255)
+  fromName          String       @db.VarChar(100)
+  smtpHost          String       @db.VarChar(255)
+  smtpPort          Int
+  
+  // Status do envio
+  status            EmailStatus  @default(pending)
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  openedAt          DateTime?
+  clickedAt         DateTime?
+  errorMessage      String?      @db.Text
+  
+  // Tracking
+  trackingId        String?      @unique @db.VarChar(100)
+  opened            Boolean      @default(false)
+  clicked           Boolean      @default(false)
+  bounced           Boolean      @default(false)
+  
+  // Metadados
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  
+  @@map("emails_sent")
+}
+
+enum EmailType {
+  cold_outreach
+  follow_up
+  introduction
+  meeting_request
+  
+  @@map("email_type")
+}
+
+enum Tone {
+  professional
+  casual
+  friendly
+  formal
+  
+  @@map("tone")
+}
+
+enum Length {
+  short
+  medium
+  long
+  
+  @@map("length")
+}
+
+enum EmailStatus {
+  pending
+  sending
+  sent
+  delivered
+  opened
+  clicked
+  bounced
+  failed
+  
+  @@map("email_status")
+}
