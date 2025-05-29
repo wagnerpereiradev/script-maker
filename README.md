@@ -62,20 +62,8 @@ cp .env.example .env.local
 Edite o arquivo `.env.local` com suas configurações:
 
 ```env
-# OpenAI API Key (obrigatório)
-OPENAI_API_KEY=sk-sua-chave-aqui
-
-# Database URL (obrigatório)
-DATABASE_URL="mysql://usuario:senha@localhost:3306/script_maker"
-
-# Configurações de Email (opcional)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=seu-email@gmail.com
-SMTP_PASSWORD=sua-senha-app
-
-# URL da Aplicação
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+ENCRYPTION_KEY=your-32-encryption-key
+DATABASE_URL="mysql://username:password@localhost:3306/script_maker"
 ```
 
 ### 3. Configure o Banco de Dados
