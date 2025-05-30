@@ -14,6 +14,30 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Modelo de usuário para autenticação
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique @db.VarChar(191)
+  name          String   @db.VarChar(191)
+  password      String   @db.VarChar(191)
+  role          UserRole @default(USER)
+  isActive      Boolean  @default(true)
+  emailVerified Boolean  @default(false)
+  lastLogin     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+  @@map("Users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
 model EmailScript {
   id                String   @id @default(cuid())
   subject           String   @db.VarChar(255)
@@ -76,6 +100,15 @@ model Settings {
   emailSignature    String?  @db.Text
   trackEmailOpens   Boolean  @default(false)
   trackEmailClicks  Boolean  @default(false)
+  
+  // Dados do remetente
+  yourName          String?  @db.VarChar(100)
+  yourCompany       String?  @db.VarChar(100)
+  yourPhone         String?  @db.VarChar(20)
+  yourIndustry      String?  @db.VarChar(100)
+  yourPosition      String?  @db.VarChar(100)
+  yourWebsite       String?  @db.VarChar(255)
+  yourLocation      String?  @db.VarChar(255)
   
   // Metadados
   createdAt         DateTime @default(now())

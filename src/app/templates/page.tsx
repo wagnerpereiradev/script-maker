@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import MainLayout from '@/components/MainLayout';
-import { Search, Filter, FileText, Calendar, Eye, Trash2, Plus, Edit3, Power, PowerOff, Check, X, Copy } from 'lucide-react';
+import { Search, Filter, FileText, Calendar, Eye, Trash2, Plus, Edit3, Power, PowerOff, Check, X, Copy, Maximize2, Monitor } from 'lucide-react';
 
 interface EmailTemplate {
     id: string;
@@ -290,102 +290,91 @@ const CustomCheckbox = ({
     );
 };
 
-// Componente isolado para preview que usa iframe
-const IsolatedPreview = ({
+// Modal de preview em tela cheia
+const FullscreenPreviewModal = ({
+    isOpen,
+    onClose,
     content,
-    className = ""
+    subject
 }: {
+    isOpen: boolean;
+    onClose: () => void;
     content: string;
-    className?: string;
+    subject: string;
 }) => {
     const iframeRef = useRef<HTMLIFrameElement>(null);
 
     useEffect(() => {
-        if (iframeRef.current && content) {
+        if (iframeRef.current && content && isOpen) {
             const iframe = iframeRef.current;
             const doc = iframe.contentDocument || iframe.contentWindow?.document;
 
             if (doc) {
-                // HTML completo com estilos base para um preview limpo
                 const htmlContent = `
                     <!DOCTYPE html>
                     <html lang="pt-BR">
                     <head>
                         <meta charset="UTF-8">
                         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>Preview</title>
+                        <title>Preview do Email</title>
                         <style>
-                            /* Reset básico para o preview */
-                            * {
-                                box-sizing: border-box;
-                            }
-                            
+                            * { box-sizing: border-box; }
                             body {
                                 margin: 0;
-                                padding: 20px;
+                                padding: 0;
                                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
                                 line-height: 1.6;
                                 color: #333;
-                                background-color: #fff;
-                                word-wrap: break-word;
+                                background-color: #f8f9fa;
                             }
-                            
-                            /* Estilos base para elementos comuns de email */
-                            img {
-                                max-width: 100%;
-                                height: auto;
+                            .email-wrapper {
+                                background-color: #f8f9fa;
+                                padding: 40px 20px;
+                                min-height: 100vh;
                             }
-                            
-                            table {
-                                border-collapse: collapse;
-                                width: 100%;
-                            }
-                            
-                            td, th {
-                                text-align: left;
-                                padding: 8px;
-                            }
-                            
-                            a {
-                                color: #0066cc;
-                                text-decoration: underline;
-                            }
-                            
-                            a:hover {
-                                text-decoration: none;
-                            }
-                            
-                            h1, h2, h3, h4, h5, h6 {
-                                margin-top: 0;
-                                margin-bottom: 16px;
-                                line-height: 1.25;
-                            }
-                            
-                            p {
-                                margin-top: 0;
-                                margin-bottom: 16px;
-                            }
-                            
-                            ul, ol {
-                                margin-top: 0;
-                                margin-bottom: 16px;
-                                padding-left: 30px;
-                            }
-                            
-                            li {
-                                margin-bottom: 4px;
-                            }
-                            
-                            /* Container para centralizar emails de largura fixa */
                             .email-container {
                                 max-width: 600px;
                                 margin: 0 auto;
+                                background-color: #ffffff;
+                                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                                border: 1px solid #e9ecef;
                             }
+                            .email-header {
+                                background-color: #ffffff;
+                                border-bottom: 1px solid #e9ecef;
+                                padding: 20px;
+                            }
+                            .email-subject {
+                                font-size: 18px;
+                                font-weight: 600;
+                                color: #212529;
+                                margin: 0;
+                            }
+                            .email-body {
+                                padding: 30px;
+                                background-color: #ffffff;
+                            }
+                            img { max-width: 100%; height: auto; }
+                            table { border-collapse: collapse; width: 100%; }
+                            td, th { text-align: left; padding: 8px; }
+                            a { color: #0066cc; text-decoration: underline; }
+                            a:hover { text-decoration: none; }
+                            h1, h2, h3, h4, h5, h6 { margin-top: 0; margin-bottom: 16px; line-height: 1.25; }
+                            p { margin-top: 0; margin-bottom: 16px; }
+                            ul, ol { margin-top: 0; margin-bottom: 16px; padding-left: 30px; }
+                            li { margin-bottom: 4px; }
                         </style>
                     </head>
                     <body>
-                        <div class="email-container">
-                            ${content}
+                        <div class="email-wrapper">
+                            <div class="email-container">
+                                <div class="email-header">
+                                    <h1 class="email-subject">${subject}</h1>
+                                </div>
+                                <div class="email-body">
+                                    ${content}
+                                </div>
+                            </div>
                         </div>
                     </body>
                     </html>
@@ -396,13 +385,144 @@ const IsolatedPreview = ({
                 doc.close();
             }
         }
-    }, [content]);
+    }, [content, subject, isOpen]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+            <div className="bg-white w-full h-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+                {/* Header do Modal */}
+                <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+                    <div className="flex items-center gap-3">
+                        <Monitor className="h-5 w-5 text-gray-600" />
+                        <h3 className="text-lg font-semibold text-gray-900">Preview do Template</h3>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                    >
+                        <X className="h-5 w-5 text-gray-600" />
+                    </button>
+                </div>
+
+                {/* Conteúdo do Modal */}
+                <div className="flex-1 bg-white">
+                    <iframe
+                        ref={iframeRef}
+                        className="w-full h-full border-none"
+                        sandbox="allow-same-origin"
+                        title="Preview Completo do Template"
+                    />
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Componente de preview melhorado simulando email real
+const EmailPreview = ({
+    content,
+    subject,
+    className = ""
+}: {
+    content: string;
+    subject: string;
+    className?: string;
+}) => {
+    const iframeRef = useRef<HTMLIFrameElement>(null);
+    const [showFullscreen, setShowFullscreen] = useState(false);
+
+    useEffect(() => {
+        if (iframeRef.current && content) {
+            const iframe = iframeRef.current;
+            const doc = iframe.contentDocument || iframe.contentWindow?.document;
+
+            if (doc) {
+                const htmlContent = `
+                    <!DOCTYPE html>
+                    <html lang="pt-BR">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Preview</title>
+                        <style>
+                            * { box-sizing: border-box; }
+                            body {
+                                margin: 0;
+                                padding: 0;
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+                                line-height: 1.6;
+                                color: #333;
+                                background-color: #f8f9fa;
+                            }
+                            .email-wrapper {
+                                background-color: #f8f9fa;
+                                padding: 20px;
+                            }
+                            .email-container {
+                                max-width: 600px;
+                                margin: 0 auto;
+                                background-color: #ffffff;
+                                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                                border: 1px solid #e9ecef;
+                            }
+                            .email-header {
+                                background-color: #ffffff;
+                                border-bottom: 1px solid #e9ecef;
+                                padding: 15px 20px;
+                            }
+                            .email-subject {
+                                font-size: 16px;
+                                font-weight: 600;
+                                color: #212529;
+                                margin: 0;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                                white-space: nowrap;
+                            }
+                            .email-body {
+                                padding: 20px;
+                                background-color: #ffffff;
+                            }
+                            img { max-width: 100%; height: auto; }
+                            table { border-collapse: collapse; width: 100%; }
+                            td, th { text-align: left; padding: 8px; }
+                            a { color: #0066cc; text-decoration: underline; }
+                            a:hover { text-decoration: none; }
+                            h1, h2, h3, h4, h5, h6 { margin-top: 0; margin-bottom: 16px; line-height: 1.25; }
+                            p { margin-top: 0; margin-bottom: 16px; }
+                            ul, ol { margin-top: 0; margin-bottom: 16px; padding-left: 30px; }
+                            li { margin-bottom: 4px; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="email-wrapper">
+                            <div class="email-container">
+                                <div class="email-header">
+                                    <div class="email-subject">${subject || 'Sem assunto'}</div>
+                                </div>
+                                <div class="email-body">
+                                    ${content}
+                                </div>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                `;
+
+                doc.open();
+                doc.write(htmlContent);
+                doc.close();
+            }
+        }
+    }, [content, subject]);
 
     if (!content) {
         return (
-            <div className="bg-white rounded-lg p-8 text-center text-gray-500 min-h-[300px] flex items-center justify-center">
+            <div className="bg-gray-50 border border-gray-200 p-8 text-center text-gray-500 min-h-[400px] flex items-center justify-center">
                 <div>
-                    <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 flex items-center justify-center">
                         <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
@@ -415,18 +535,32 @@ const IsolatedPreview = ({
     }
 
     return (
-        <div className={`bg-white rounded-lg overflow-hidden shadow-inner border border-gray-200 ${className}`}>
-            <iframe
-                ref={iframeRef}
-                className="w-full h-full min-h-[400px] border-none"
-                sandbox="allow-same-origin"
-                title="Preview do Email"
-                style={{
-                    backgroundColor: 'white',
-                    borderRadius: '0.5rem'
-                }}
+        <>
+            <div className={`bg-white overflow-hidden shadow-lg border border-gray-200 relative ${className}`}>
+                {/* Botão de tela cheia */}
+                <button
+                    onClick={() => setShowFullscreen(true)}
+                    className="absolute top-2 right-2 z-10 p-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white transition-all cursor-pointer"
+                    title="Ver em tela cheia"
+                >
+                    <Maximize2 className="h-4 w-4" />
+                </button>
+
+                <iframe
+                    ref={iframeRef}
+                    className="w-full h-full absolute top-0 left-0 bottom-0 right-0 border-none"
+                    sandbox="allow-same-origin"
+                    title="Preview do Template"
+                />
+            </div>
+
+            <FullscreenPreviewModal
+                isOpen={showFullscreen}
+                onClose={() => setShowFullscreen(false)}
+                content={content}
+                subject={subject}
             />
-        </div>
+        </>
     );
 };
 
@@ -775,6 +909,7 @@ export default function Templates() {
     const commonVariables = [
         // === DADOS DO CONTATO/PROSPECT ===
         { name: 'contactName', label: '👤 Nome do Contato', category: 'prospect', description: 'Nome da pessoa de contato (FUNCIONAL)' },
+        { name: 'contactFirstName', label: '👤 Primeiro Nome', category: 'prospect', description: 'Apenas o primeiro nome do contato (FUNCIONAL)' },
         { name: 'contactEmail', label: '📧 Email do Contato', category: 'prospect', description: 'Email da pessoa de contato (FUNCIONAL)' },
         { name: 'contactPhone', label: '📞 Telefone do Contato', category: 'prospect', description: 'Telefone da pessoa de contato (FUNCIONAL)' },
         { name: 'contactPosition', label: '💼 Cargo do Contato', category: 'prospect', description: 'Cargo/posição da pessoa (FUNCIONAL)' },
@@ -1297,8 +1432,9 @@ export default function Templates() {
                                     </div>
 
                                     <div className="flex-1 p-6 overflow-y-auto">
-                                        <IsolatedPreview
+                                        <EmailPreview
                                             content={formData.htmlContent}
+                                            subject={formData.subject}
                                             className="min-h-full"
                                         />
                                     </div>
@@ -1557,8 +1693,9 @@ export default function Templates() {
                                     </div>
 
                                     <div className="flex-1 p-6 overflow-y-auto">
-                                        <IsolatedPreview
+                                        <EmailPreview
                                             content={formData.htmlContent}
+                                            subject={formData.subject}
                                             className="min-h-full"
                                         />
                                     </div>

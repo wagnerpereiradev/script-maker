@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import MainLayout from '@/components/MainLayout';
-import { Search, Filter, FileText, Calendar, User, Building, Eye, Trash2, X, Copy, Check, Tag } from 'lucide-react';
+import { Search, Filter, FileText, Calendar, User, Building, Eye, Trash2, X, Copy, Check, Tag, Edit3, Save, Plus } from 'lucide-react';
 
 interface Script {
     id: string;
@@ -73,6 +73,7 @@ export default function Scripts() {
     // Modal states
     const [selectedScript, setSelectedScript] = useState<Script | null>(null);
     const [showModal, setShowModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
 
     // Selection states
     const [selectedScripts, setSelectedScripts] = useState<Set<string>>(new Set());
@@ -82,6 +83,25 @@ export default function Scripts() {
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [copiedScript, setCopiedScript] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
+    const [saving, setSaving] = useState(false);
+
+    // Edit form states
+    const [editForm, setEditForm] = useState({
+        subject: '',
+        body: '',
+        prospectData: {
+            contactName: '',
+            companyName: '',
+            niche: '',
+            position: '',
+            website: '',
+            painPoints: ''
+        },
+        emailType: '',
+        tone: '',
+        length: '',
+        callToAction: ''
+    });
 
     // Confirmation modal states
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -147,6 +167,115 @@ export default function Scripts() {
     const closeModal = () => {
         setShowModal(false);
         setSelectedScript(null);
+    };
+
+    // Edit functions
+    const openEditModal = async (scriptId: string) => {
+        try {
+            const response = await fetch(`/api/scripts/${scriptId}`);
+            if (response.ok) {
+                const script = await response.json();
+                setSelectedScript(script);
+                setEditForm({
+                    subject: script.subject,
+                    body: script.body,
+                    prospectData: {
+                        contactName: script.prospectData?.contactName || '',
+                        companyName: script.prospectData?.companyName || '',
+                        niche: script.prospectData?.niche || '',
+                        position: script.prospectData?.position || '',
+                        website: script.prospectData?.website || '',
+                        painPoints: script.prospectData?.painPoints || ''
+                    },
+                    emailType: script.emailType,
+                    tone: script.tone,
+                    length: script.length,
+                    callToAction: script.callToAction
+                });
+                setShowEditModal(true);
+            } else {
+                setMessage({ type: 'error', text: 'Erro ao carregar script para edição' });
+            }
+        } catch {
+            setMessage({ type: 'error', text: 'Erro ao carregar script' });
+        }
+    };
+
+    const closeEditModal = () => {
+        setShowEditModal(false);
+        setSelectedScript(null);
+        setEditForm({
+            subject: '',
+            body: '',
+            prospectData: {
+                contactName: '',
+                companyName: '',
+                niche: '',
+                position: '',
+                website: '',
+                painPoints: ''
+            },
+            emailType: '',
+            tone: '',
+            length: '',
+            callToAction: ''
+        });
+    };
+
+    const saveScript = async () => {
+        if (!selectedScript) return;
+
+        setSaving(true);
+        try {
+            const response = await fetch(`/api/scripts/${selectedScript.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(editForm),
+            });
+
+            if (response.ok) {
+                setMessage({ type: 'success', text: 'Script atualizado com sucesso!' });
+                closeEditModal();
+                fetchScripts();
+            } else {
+                const error = await response.json();
+                setMessage({ type: 'error', text: error.error || 'Erro ao salvar script' });
+            }
+        } catch {
+            setMessage({ type: 'error', text: 'Erro ao conectar com o servidor' });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // Tag insertion functions
+    const insertTag = (field: 'subject' | 'body' | 'callToAction', tag: string) => {
+        const textareaId = `${field}-textarea`;
+        const textarea = document.getElementById(textareaId) as HTMLTextAreaElement;
+
+        if (textarea) {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const currentValue = editForm[field];
+            const newValue = currentValue.substring(0, start) + tag + currentValue.substring(end);
+
+            setEditForm(prev => ({
+                ...prev,
+                [field]: newValue
+            }));
+
+            // Restaurar posição do cursor
+            setTimeout(() => {
+                textarea.focus();
+                textarea.setSelectionRange(start + tag.length, start + tag.length);
+            }, 0);
+        } else {
+            // Fallback: adicionar no final
+            setEditForm(prev => ({
+                ...prev,
+                [field]: prev[field] + tag
+            }));
+        }
     };
 
     // Selection functions
@@ -515,6 +644,14 @@ export default function Scripts() {
                                                         <span className="hidden sm:inline">Ver</span>
                                                     </button>
                                                     <button
+                                                        onClick={() => openEditModal(script.id)}
+                                                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs cursor-pointer"
+                                                        title="Editar script"
+                                                    >
+                                                        <Edit3 className="h-3.5 w-3.5" />
+                                                        <span className="hidden sm:inline">Editar</span>
+                                                    </button>
+                                                    <button
                                                         onClick={() => deleteScript(script.id)}
                                                         disabled={deleting}
                                                         className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
@@ -702,6 +839,379 @@ export default function Scripts() {
                                         className="px-4 py-2 bg-white text-black rounded-lg hover:bg-neutral-200 transition-colors cursor-pointer"
                                     >
                                         Fechar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Edit Modal */}
+                {showEditModal && selectedScript && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-neutral-900 rounded-lg max-w-5xl w-full max-h-[90vh] overflow-hidden border border-neutral-700">
+                            {/* Modal Header */}
+                            <div className="p-6 border-b border-neutral-700 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <h2 className="text-xl font-bold text-white">
+                                        Editar Script
+                                    </h2>
+                                    <span className="px-3 py-1 rounded-full text-sm font-medium border bg-blue-900/20 text-blue-300 border-blue-700">
+                                        {getEmailTypeLabel(editForm.emailType)}
+                                    </span>
+                                </div>
+                                <button
+                                    onClick={closeEditModal}
+                                    className="text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                                >
+                                    <X className="h-6 w-6" />
+                                </button>
+                            </div>
+
+                            {/* Modal Content */}
+                            <div className="flex h-[calc(90vh-140px)]">
+                                {/* Left Side - Form */}
+                                <div className="flex-1 p-6 overflow-y-auto">
+                                    <div className="space-y-6">
+                                        {/* Basic Info */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-white mb-2">
+                                                    Tipo de Email
+                                                </label>
+                                                <select
+                                                    value={editForm.emailType}
+                                                    onChange={(e) => setEditForm(prev => ({ ...prev, emailType: e.target.value }))}
+                                                    className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                                                >
+                                                    <option value="cold_outreach">Primeiro Contato</option>
+                                                    <option value="follow_up">Follow-up</option>
+                                                    <option value="introduction">Apresentação</option>
+                                                    <option value="meeting_request">Agendamento</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-white mb-2">
+                                                    Tom
+                                                </label>
+                                                <select
+                                                    value={editForm.tone}
+                                                    onChange={(e) => setEditForm(prev => ({ ...prev, tone: e.target.value }))}
+                                                    className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                                                >
+                                                    <option value="professional">Profissional</option>
+                                                    <option value="casual">Casual</option>
+                                                    <option value="friendly">Amigável</option>
+                                                    <option value="formal">Formal</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* Prospect Data */}
+                                        <div>
+                                            <h3 className="text-lg font-semibold text-white mb-4">Dados do Prospect</h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-white mb-2">
+                                                        Nome do Contato
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={editForm.prospectData.contactName}
+                                                        onChange={(e) => setEditForm(prev => ({
+                                                            ...prev,
+                                                            prospectData: { ...prev.prospectData, contactName: e.target.value }
+                                                        }))}
+                                                        className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                                                        placeholder="Ex: João Silva ou [Nome do Contato]"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-white mb-2">
+                                                        Empresa
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={editForm.prospectData.companyName}
+                                                        onChange={(e) => setEditForm(prev => ({
+                                                            ...prev,
+                                                            prospectData: { ...prev.prospectData, companyName: e.target.value }
+                                                        }))}
+                                                        className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                                                        placeholder="Ex: Acme Corp ou [Nome da Empresa]"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-white mb-2">
+                                                        Nicho/Setor
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={editForm.prospectData.niche}
+                                                        onChange={(e) => setEditForm(prev => ({
+                                                            ...prev,
+                                                            prospectData: { ...prev.prospectData, niche: e.target.value }
+                                                        }))}
+                                                        className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                                                        placeholder="Ex: E-commerce ou [Nicho/Setor]"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-white mb-2">
+                                                        Cargo
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={editForm.prospectData.position}
+                                                        onChange={(e) => setEditForm(prev => ({
+                                                            ...prev,
+                                                            prospectData: { ...prev.prospectData, position: e.target.value }
+                                                        }))}
+                                                        className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                                                        placeholder="Ex: CEO ou [Cargo]"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Subject */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-white mb-2">
+                                                Assunto do Email
+                                            </label>
+                                            <textarea
+                                                id="subject-textarea"
+                                                value={editForm.subject}
+                                                onChange={(e) => setEditForm(prev => ({ ...prev, subject: e.target.value }))}
+                                                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-blue-500 resize-none h-16"
+                                                placeholder="Assunto do email..."
+                                            />
+                                        </div>
+
+                                        {/* Email Body */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-white mb-2">
+                                                Corpo do Email
+                                            </label>
+                                            <textarea
+                                                id="body-textarea"
+                                                value={editForm.body}
+                                                onChange={(e) => setEditForm(prev => ({ ...prev, body: e.target.value }))}
+                                                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-blue-500 resize-none h-48"
+                                                placeholder="Conteúdo do email..."
+                                            />
+                                        </div>
+
+                                        {/* Call to Action */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-white mb-2">
+                                                Call to Action
+                                            </label>
+                                            <textarea
+                                                id="callToAction-textarea"
+                                                value={editForm.callToAction}
+                                                onChange={(e) => setEditForm(prev => ({ ...prev, callToAction: e.target.value }))}
+                                                className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-blue-500 resize-none h-20"
+                                                placeholder="Chamada para ação..."
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Right Side - Dynamic Tags */}
+                                <div className="w-80 border-l border-neutral-700 p-6 bg-neutral-800/50">
+                                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                                        <Tag className="h-5 w-5" />
+                                        Tags Dinâmicas
+                                    </h3>
+                                    <p className="text-sm text-neutral-400 mb-6">
+                                        Clique nas tags para inserir no campo ativo (assunto, corpo ou CTA)
+                                    </p>
+
+                                    <div className="space-y-6">
+                                        {/* Contact Tags */}
+                                        <div>
+                                            <h4 className="text-sm font-medium text-white mb-3">👤 Dados do Contato</h4>
+                                            <div className="space-y-2">
+                                                {[
+                                                    { tag: '{{contactName}}', label: 'Nome do Contato' },
+                                                    { tag: '{{contactEmail}}', label: 'Email do Contato' },
+                                                    { tag: '{{contactPhone}}', label: 'Telefone do Contato' },
+                                                    { tag: '{{contactPosition}}', label: 'Cargo do Contato' }
+                                                ].map(({ tag, label }) => (
+                                                    <div key={tag} className="flex items-center justify-between">
+                                                        <span className="text-xs text-neutral-300">{label}</span>
+                                                        <div className="flex gap-1">
+                                                            <button
+                                                                onClick={() => insertTag('subject', tag)}
+                                                                className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 rounded text-xs transition-colors"
+                                                                title="Inserir no assunto"
+                                                            >
+                                                                S
+                                                            </button>
+                                                            <button
+                                                                onClick={() => insertTag('body', tag)}
+                                                                className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 rounded text-xs transition-colors"
+                                                                title="Inserir no corpo"
+                                                            >
+                                                                B
+                                                            </button>
+                                                            <button
+                                                                onClick={() => insertTag('callToAction', tag)}
+                                                                className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 rounded text-xs transition-colors"
+                                                                title="Inserir no CTA"
+                                                            >
+                                                                C
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Company Tags */}
+                                        <div>
+                                            <h4 className="text-sm font-medium text-white mb-3">🏢 Dados da Empresa</h4>
+                                            <div className="space-y-2">
+                                                {[
+                                                    { tag: '{{companyName}}', label: 'Nome da Empresa' },
+                                                    { tag: '{{companyWebsite}}', label: 'Website da Empresa' },
+                                                    { tag: '{{companyIndustry}}', label: 'Setor da Empresa' },
+                                                    { tag: '{{companySize}}', label: 'Tamanho da Empresa' }
+                                                ].map(({ tag, label }) => (
+                                                    <div key={tag} className="flex items-center justify-between">
+                                                        <span className="text-xs text-neutral-300">{label}</span>
+                                                        <div className="flex gap-1">
+                                                            <button
+                                                                onClick={() => insertTag('subject', tag)}
+                                                                className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 rounded text-xs transition-colors"
+                                                            >
+                                                                S
+                                                            </button>
+                                                            <button
+                                                                onClick={() => insertTag('body', tag)}
+                                                                className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 rounded text-xs transition-colors"
+                                                            >
+                                                                B
+                                                            </button>
+                                                            <button
+                                                                onClick={() => insertTag('callToAction', tag)}
+                                                                className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 rounded text-xs transition-colors"
+                                                            >
+                                                                C
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Content Tags */}
+                                        <div>
+                                            <h4 className="text-sm font-medium text-white mb-3">📝 Conteúdo</h4>
+                                            <div className="space-y-2">
+                                                {[
+                                                    { tag: '{{painPoints}}', label: 'Pontos de Dor' },
+                                                    { tag: '{{solutions}}', label: 'Soluções' },
+                                                    { tag: '{{benefits}}', label: 'Benefícios' },
+                                                    { tag: '{{scriptBody}}', label: 'Corpo do Script' }
+                                                ].map(({ tag, label }) => (
+                                                    <div key={tag} className="flex items-center justify-between">
+                                                        <span className="text-xs text-neutral-300">{label}</span>
+                                                        <div className="flex gap-1">
+                                                            <button
+                                                                onClick={() => insertTag('subject', tag)}
+                                                                className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 rounded text-xs transition-colors"
+                                                            >
+                                                                S
+                                                            </button>
+                                                            <button
+                                                                onClick={() => insertTag('body', tag)}
+                                                                className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 rounded text-xs transition-colors"
+                                                            >
+                                                                B
+                                                            </button>
+                                                            <button
+                                                                onClick={() => insertTag('callToAction', tag)}
+                                                                className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 rounded text-xs transition-colors"
+                                                            >
+                                                                C
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Dynamic Tags */}
+                                        <div>
+                                            <h4 className="text-sm font-medium text-white mb-3">⚡ Dinâmico</h4>
+                                            <div className="space-y-2">
+                                                {[
+                                                    { tag: '{{currentDate}}', label: 'Data Atual' },
+                                                    { tag: '{{currentTime}}', label: 'Hora Atual' },
+                                                    { tag: '{{dayOfWeek}}', label: 'Dia da Semana' },
+                                                    { tag: '{{senderName}}', label: 'Nome do Remetente' }
+                                                ].map(({ tag, label }) => (
+                                                    <div key={tag} className="flex items-center justify-between">
+                                                        <span className="text-xs text-neutral-300">{label}</span>
+                                                        <div className="flex gap-1">
+                                                            <button
+                                                                onClick={() => insertTag('subject', tag)}
+                                                                className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 rounded text-xs transition-colors"
+                                                            >
+                                                                S
+                                                            </button>
+                                                            <button
+                                                                onClick={() => insertTag('body', tag)}
+                                                                className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 rounded text-xs transition-colors"
+                                                            >
+                                                                B
+                                                            </button>
+                                                            <button
+                                                                onClick={() => insertTag('callToAction', tag)}
+                                                                className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 rounded text-xs transition-colors"
+                                                            >
+                                                                C
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="p-6 border-t border-neutral-700 flex items-center justify-between bg-neutral-900">
+                                <div className="text-sm text-neutral-400">
+                                    <span className="font-medium">Dica:</span> Use S (Assunto), B (Corpo), C (CTA) para inserir tags
+                                </div>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={closeEditModal}
+                                        disabled={saving}
+                                        className="px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition-colors border border-neutral-600 disabled:opacity-50"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        onClick={saveScript}
+                                        disabled={saving || !editForm.subject || !editForm.body}
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {saving ? (
+                                            <>
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                Salvando...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save className="h-4 w-4" />
+                                                Salvar Alterações
+                                            </>
+                                        )}
                                     </button>
                                 </div>
                             </div>

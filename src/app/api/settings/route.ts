@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSettings, updateSettings, UpdateSettingsRequest } from '@/lib/settings';
+import { requireAuth, unauthorizedResponse } from '@/lib/api-auth';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
+        // Verificar autenticação
+        const { user, error } = requireAuth(request);
+        if (error || !user) {
+            return unauthorizedResponse(error);
+        }
+
         const settings = await getSettings();
 
         // Remover informações sensíveis antes de retornar
@@ -26,6 +33,12 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
     try {
+        // Verificar autenticação
+        const { user, error } = requireAuth(request);
+        if (error || !user) {
+            return unauthorizedResponse(error);
+        }
+
         const body: UpdateSettingsRequest = await request.json();
 
         const updatedSettings = await updateSettings(body);

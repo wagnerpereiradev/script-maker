@@ -24,6 +24,14 @@ export interface Settings {
     emailSignature?: string;
     trackEmailOpens: boolean;
     trackEmailClicks: boolean;
+    // Dados pessoais do remetente
+    yourName?: string;
+    yourCompany?: string;
+    yourPhone?: string;
+    yourIndustry?: string;
+    yourPosition?: string;
+    yourWebsite?: string;
+    yourLocation?: string;
     // Metadados
     createdAt: Date;
     updatedAt: Date;
@@ -49,6 +57,14 @@ export interface UpdateSettingsRequest {
     emailSignature?: string;
     trackEmailOpens?: boolean;
     trackEmailClicks?: boolean;
+    // Dados pessoais do remetente
+    yourName?: string;
+    yourCompany?: string;
+    yourPhone?: string;
+    yourIndustry?: string;
+    yourPosition?: string;
+    yourWebsite?: string;
+    yourLocation?: string;
 }
 
 // Chave de criptografia fixa (em produção, use uma chave do ambiente)
@@ -193,6 +209,13 @@ export async function getSettings(): Promise<Settings> {
             emailSignature: settings.emailSignature || undefined,
             trackEmailOpens: settings.trackEmailOpens,
             trackEmailClicks: settings.trackEmailClicks,
+            yourName: settings.yourName || undefined,
+            yourCompany: settings.yourCompany || undefined,
+            yourPhone: settings.yourPhone || undefined,
+            yourIndustry: settings.yourIndustry || undefined,
+            yourPosition: settings.yourPosition || undefined,
+            yourWebsite: settings.yourWebsite || undefined,
+            yourLocation: settings.yourLocation || undefined,
             createdAt: settings.createdAt,
             updatedAt: settings.updatedAt,
         };
@@ -262,6 +285,29 @@ export async function updateSettings(updates: UpdateSettingsRequest): Promise<Se
             updateData.trackEmailClicks = updates.trackEmailClicks;
         }
 
+        // Dados pessoais do remetente
+        if (updates.yourName !== undefined) {
+            updateData.yourName = updates.yourName || null;
+        }
+        if (updates.yourCompany !== undefined) {
+            updateData.yourCompany = updates.yourCompany || null;
+        }
+        if (updates.yourPhone !== undefined) {
+            updateData.yourPhone = updates.yourPhone || null;
+        }
+        if (updates.yourIndustry !== undefined) {
+            updateData.yourIndustry = updates.yourIndustry || null;
+        }
+        if (updates.yourPosition !== undefined) {
+            updateData.yourPosition = updates.yourPosition || null;
+        }
+        if (updates.yourWebsite !== undefined) {
+            updateData.yourWebsite = updates.yourWebsite || null;
+        }
+        if (updates.yourLocation !== undefined) {
+            updateData.yourLocation = updates.yourLocation || null;
+        }
+
         const updatedSettings = await prisma.settings.update({
             where: { id: currentSettings.id },
             data: updateData
@@ -284,6 +330,13 @@ export async function updateSettings(updates: UpdateSettingsRequest): Promise<Se
             emailSignature: updatedSettings.emailSignature || undefined,
             trackEmailOpens: updatedSettings.trackEmailOpens,
             trackEmailClicks: updatedSettings.trackEmailClicks,
+            yourName: updatedSettings.yourName || undefined,
+            yourCompany: updatedSettings.yourCompany || undefined,
+            yourPhone: updatedSettings.yourPhone || undefined,
+            yourIndustry: updatedSettings.yourIndustry || undefined,
+            yourPosition: updatedSettings.yourPosition || undefined,
+            yourWebsite: updatedSettings.yourWebsite || undefined,
+            yourLocation: updatedSettings.yourLocation || undefined,
             createdAt: updatedSettings.createdAt,
             updatedAt: updatedSettings.updatedAt,
         };

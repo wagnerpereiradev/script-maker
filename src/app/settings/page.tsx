@@ -21,6 +21,13 @@ interface Settings {
     trackEmailClicks: boolean;
     hasOpenAIKey?: boolean;
     hasSMTPPassword?: boolean;
+    yourName?: string;
+    yourCompany?: string;
+    yourPhone?: string;
+    yourIndustry?: string;
+    yourPosition?: string;
+    yourWebsite?: string;
+    yourLocation?: string;
 }
 
 export default function Settings() {
@@ -102,6 +109,13 @@ export default function Settings() {
                 emailSignature: settings.emailSignature,
                 trackEmailOpens: settings.trackEmailOpens,
                 trackEmailClicks: settings.trackEmailClicks,
+                yourName: settings.yourName,
+                yourCompany: settings.yourCompany,
+                yourPhone: settings.yourPhone,
+                yourIndustry: settings.yourIndustry,
+                yourPosition: settings.yourPosition,
+                yourWebsite: settings.yourWebsite,
+                yourLocation: settings.yourLocation,
             };
 
             // Só inclui API key se foi alterada
@@ -485,6 +499,129 @@ export default function Settings() {
                                     value={settings.emailSignature || ''}
                                     onChange={(e) => setSettings({ ...settings, emailSignature: e.target.value })}
                                 />
+                            </div>
+                        </div>
+
+                        {/* Personal Data Section */}
+                        <div className="bg-neutral-gradient rounded-lg p-6 border border-neutral-800">
+                            <div className="flex items-center mb-4">
+                                <User className="h-5 w-5 text-white mr-3" />
+                                <h3 className="text-lg font-semibold text-white">
+                                    Dados Pessoais do Remetente
+                                </h3>
+                            </div>
+                            <p className="text-sm text-neutral-400 mb-6">
+                                Configure seus dados pessoais para uso em templates. Use as tags como {'{'}{'{'} yourName {'}'}{'}'},  {'{'}{'{'} yourCompany {'}'}{'}'},  etc. nos seus templates e scripts.
+                            </p>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-neutral-300 mb-2">
+                                        Seu Nome <span className="text-xs text-neutral-500">({'{'}{'{'} yourName {'}'}{'}'})</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: João Silva"
+                                        className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white"
+                                        value={settings.yourName || ''}
+                                        onChange={(e) => setSettings({ ...settings, yourName: e.target.value })}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-neutral-300 mb-2">
+                                        Sua Empresa <span className="text-xs text-neutral-500">({'{'}{'{'} yourCompany {'}'}{'}'})</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: Minha Empresa Ltda"
+                                        className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white"
+                                        value={settings.yourCompany || ''}
+                                        onChange={(e) => setSettings({ ...settings, yourCompany: e.target.value })}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-neutral-300 mb-2">
+                                        Seu Telefone <span className="text-xs text-neutral-500">({'{'}{'{'} yourPhone {'}'}{'}'})</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: (11) 99999-9999"
+                                        className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white"
+                                        value={settings.yourPhone || ''}
+                                        onChange={(e) => setSettings({ ...settings, yourPhone: e.target.value })}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-neutral-300 mb-2">
+                                        Seu Cargo <span className="text-xs text-neutral-500">({'{'}{'{'} yourPosition {'}'}{'}'})</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: Diretor Comercial"
+                                        className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white"
+                                        value={settings.yourPosition || ''}
+                                        onChange={(e) => setSettings({ ...settings, yourPosition: e.target.value })}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-neutral-300 mb-2">
+                                        Seu Setor/Indústria <span className="text-xs text-neutral-500">({'{'}{'{'} yourIndustry {'}'}{'}'})</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: Tecnologia, Consultoria, etc."
+                                        className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white"
+                                        value={settings.yourIndustry || ''}
+                                        onChange={(e) => setSettings({ ...settings, yourIndustry: e.target.value })}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-neutral-300 mb-2">
+                                        Seu Website <span className="text-xs text-neutral-500">({'{'}{'{'} yourWebsite {'}'}{'}'})</span>
+                                    </label>
+                                    <input
+                                        type="url"
+                                        placeholder="Ex: https://minhaempresa.com"
+                                        className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white"
+                                        value={settings.yourWebsite || ''}
+                                        onChange={(e) => setSettings({ ...settings, yourWebsite: e.target.value })}
+                                    />
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-neutral-300 mb-2">
+                                        Sua Localização <span className="text-xs text-neutral-500">({'{'}{'{'} yourLocation {'}'}{'}'})</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: São Paulo, SP - Brasil"
+                                        className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white"
+                                        value={settings.yourLocation || ''}
+                                        onChange={(e) => setSettings({ ...settings, yourLocation: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Tags Reference */}
+                            <div className="mt-6 p-4 bg-neutral-800/50 rounded-lg border border-neutral-700">
+                                <h4 className="text-sm font-medium text-neutral-300 mb-3">Tags Disponíveis:</h4>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                                    <code className="bg-neutral-700 px-2 py-1 rounded text-blue-300">{'{{yourName}}'}</code>
+                                    <code className="bg-neutral-700 px-2 py-1 rounded text-blue-300">{'{{yourCompany}}'}</code>
+                                    <code className="bg-neutral-700 px-2 py-1 rounded text-blue-300">{'{{yourPhone}}'}</code>
+                                    <code className="bg-neutral-700 px-2 py-1 rounded text-blue-300">{'{{yourPosition}}'}</code>
+                                    <code className="bg-neutral-700 px-2 py-1 rounded text-blue-300">{'{{yourIndustry}}'}</code>
+                                    <code className="bg-neutral-700 px-2 py-1 rounded text-blue-300">{'{{yourWebsite}}'}</code>
+                                    <code className="bg-neutral-700 px-2 py-1 rounded text-blue-300">{'{{yourLocation}}'}</code>
+                                </div>
+                                <p className="text-xs text-neutral-500 mt-3">
+                                    Use essas tags nos seus templates e scripts. Elas serão automaticamente substituídas pelos valores configurados acima.
+                                </p>
                             </div>
                         </div>
 

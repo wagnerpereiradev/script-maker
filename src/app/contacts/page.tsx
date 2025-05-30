@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import MainLayout from '@/components/MainLayout';
-import { Search, Filter, Users, Calendar, Eye, Trash2, Plus, Edit3, Power, PowerOff, Check, X, Phone, Mail, Globe, Building2, User, MessageSquare } from 'lucide-react';
+import { Search, Filter, Users, Calendar, Eye, Trash2, Plus, Edit3, Power, PowerOff, Check, X, Phone, Mail, Globe, Building2, User, MessageSquare, Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface Contact {
     id: string;
@@ -66,11 +66,14 @@ export default function Contacts() {
     const [isActive, setIsActive] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [totalContacts, setTotalContacts] = useState(0);
 
     // Modal states
     const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
     const [showViewModal, setShowViewModal] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
 
     // Selection states
     const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
@@ -79,6 +82,17 @@ export default function Contacts() {
     // UI states
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [deleting, setDeleting] = useState(false);
+
+    // Import states
+    const [importFile, setImportFile] = useState<File | null>(null);
+    const [importData, setImportData] = useState<any[]>([]);
+    const [importMapping, setImportMapping] = useState<{ [key: string]: string }>({});
+    const [importStep, setImportStep] = useState<'upload' | 'mapping' | 'preview' | 'importing'>('upload');
+    const [importResults, setImportResults] = useState<{
+        success: number;
+        errors: { row: number; error: string }[];
+    } | null>(null);
+    const [importing, setImporting] = useState(false);
 
     // Confirmation modal states
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -147,12 +161,144 @@ export default function Contacts() {
         return name.substring(0, 2).toUpperCase();
     };
 
+    // Função para formatar números de telefone
+    const formatPhoneNumber = (phone: string): string => {
+        if (!phone) return '';
+
+        // Remove todos os caracteres não numéricos, exceto + no início
+        let cleaned = phone.replace(/[^\d+]/g, '');
+
+        // Se não tem +, assume que é número brasileiro
+        if (!cleaned.startsWith('+')) {
+            // Remove zeros à esquerda
+            cleaned = cleaned.replace(/^0+/, '');
+
+            // Se tem 11 dígitos, assume formato brasileiro com DDD
+            if (cleaned.length === 11) {
+                return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
+            }
+            // Se tem 10 dígitos, assume formato brasileiro com DDD (telefone fixo)
+            else if (cleaned.length === 10) {
+                return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
+            }
+            // Se tem 13 dígitos e começa com 55, assume brasileiro com código do país
+            else if (cleaned.length === 13 && cleaned.startsWith('55')) {
+                return `+55 (${cleaned.slice(2, 4)}) ${cleaned.slice(4, 9)}-${cleaned.slice(9)}`;
+            }
+            // Se tem 12 dígitos e começa com 55, assume brasileiro com código do país (fixo)
+            else if (cleaned.length === 12 && cleaned.startsWith('55')) {
+                return `+55 (${cleaned.slice(2, 4)}) ${cleaned.slice(4, 8)}-${cleaned.slice(8)}`;
+            }
+            // Para outros casos, adiciona código brasileiro
+            else if (cleaned.length >= 8) {
+                return `+55 ${cleaned}`;
+            }
+        } else {
+            // Número internacional com código de país
+            const countryPatterns = {
+                '+1': { // EUA/Canadá
+                    pattern: /^\+1(\d{10})$/,
+                    format: (match: RegExpMatchArray) => `+1 (${match[1].slice(0, 3)}) ${match[1].slice(3, 6)}-${match[1].slice(6)}`
+                },
+                '+55': { // Brasil
+                    pattern: /^\+55(\d{2})(\d{8,9})$/,
+                    format: (match: RegExpMatchArray) => {
+                        const ddd = match[1];
+                        const number = match[2];
+                        if (number.length === 9) {
+                            return `+55 (${ddd}) ${number.slice(0, 5)}-${number.slice(5)}`;
+                        } else {
+                            return `+55 (${ddd}) ${number.slice(0, 4)}-${number.slice(4)}`;
+                        }
+                    }
+                },
+                '+44': { // Reino Unido
+                    pattern: /^\+44(\d+)$/,
+                    format: (match: RegExpMatchArray) => `+44 ${match[1].replace(/(\d{4})(\d{6})/, '$1 $2')}`
+                },
+                '+49': { // Alemanha
+                    pattern: /^\+49(\d+)$/,
+                    format: (match: RegExpMatchArray) => `+49 ${match[1]}`
+                },
+                '+33': { // França
+                    pattern: /^\+33(\d+)$/,
+                    format: (match: RegExpMatchArray) => `+33 ${match[1].replace(/(\d{1})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5')}`
+                },
+                '+39': { // Itália
+                    pattern: /^\+39(\d+)$/,
+                    format: (match: RegExpMatchArray) => `+39 ${match[1]}`
+                },
+                '+81': { // Japão
+                    pattern: /^\+81(\d+)$/,
+                    format: (match: RegExpMatchArray) => `+81 ${match[1]}`
+                },
+                '+86': { // China
+                    pattern: /^\+86(\d+)$/,
+                    format: (match: RegExpMatchArray) => `+86 ${match[1]}`
+                },
+                '+91': { // Índia
+                    pattern: /^\+91(\d+)$/,
+                    format: (match: RegExpMatchArray) => `+91 ${match[1]}`
+                },
+                '+61': { // Austrália
+                    pattern: /^\+61(\d+)$/,
+                    format: (match: RegExpMatchArray) => `+61 ${match[1]}`
+                },
+                '+27': { // África do Sul
+                    pattern: /^\+27(\d+)$/,
+                    format: (match: RegExpMatchArray) => `+27 ${match[1]}`
+                }
+            };
+
+            // Tenta encontrar o padrão correto
+            for (const [code, config] of Object.entries(countryPatterns)) {
+                if (cleaned.startsWith(code)) {
+                    const match = cleaned.match(config.pattern);
+                    if (match) {
+                        return config.format(match);
+                    }
+                }
+            }
+
+            // Se não encontrou padrão específico, tenta formatação genérica
+            const genericMatch = cleaned.match(/^\+(\d{1,4})(\d+)$/);
+            if (genericMatch) {
+                const countryCode = genericMatch[1];
+                const number = genericMatch[2];
+
+                // Formata números longos em grupos
+                if (number.length >= 8) {
+                    const formatted = number.replace(/(\d{2,4})(?=\d)/g, '$1 ');
+                    return `+${countryCode} ${formatted.trim()}`;
+                }
+                return `+${countryCode} ${number}`;
+            }
+        }
+
+        // Retorna o número original se não conseguiu formatar
+        return phone;
+    };
+
+    // Função para validar formato de telefone
+    const isValidPhoneNumber = (phone: string): boolean => {
+        if (!phone) return true; // Telefone é opcional
+
+        const cleaned = phone.replace(/[^\d+]/g, '');
+
+        // Aceita números brasileiros (10-11 dígitos) ou internacionais com +
+        if (cleaned.startsWith('+')) {
+            return cleaned.length >= 8 && cleaned.length <= 18;
+        } else {
+            return cleaned.length >= 8 && cleaned.length <= 15;
+        }
+    };
+
     const fetchContacts = useCallback(async () => {
         setLoading(true);
         try {
             const params = new URLSearchParams({
                 page: currentPage.toString(),
-                limit: '10',
+                limit: itemsPerPage === -1 ? '999999' : itemsPerPage.toString(),
                 ...(search && { search }),
                 ...(isActive && { isActive }),
             });
@@ -162,6 +308,7 @@ export default function Contacts() {
                 const data = await response.json();
                 setContacts(data.contacts);
                 setTotalPages(data.pages);
+                setTotalContacts(data.total || data.contacts.length);
                 setSelectedContacts(new Set());
                 setSelectAll(false);
             }
@@ -171,7 +318,7 @@ export default function Contacts() {
         } finally {
             setLoading(false);
         }
-    }, [currentPage, search, isActive]);
+    }, [currentPage, search, isActive, itemsPerPage]);
 
     useEffect(() => {
         fetchContacts();
@@ -181,6 +328,11 @@ export default function Contacts() {
         e.preventDefault();
         setCurrentPage(1);
         fetchContacts();
+    };
+
+    const handleItemsPerPageChange = (newItemsPerPage: number) => {
+        setItemsPerPage(newItemsPerPage);
+        setCurrentPage(1);
     };
 
     const openViewModal = async (contactId: string) => {
@@ -334,11 +486,21 @@ export default function Contacts() {
             return;
         }
 
+        if (formData.phone && !isValidPhoneNumber(formData.phone)) {
+            setMessage({ type: 'error', text: 'Formato de telefone inválido' });
+            return;
+        }
+
         try {
+            const dataToSend = {
+                ...formData,
+                phone: formatPhoneNumber(formData.phone)
+            };
+
             const response = await fetch('/api/contacts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(dataToSend),
             });
 
             if (response.ok) {
@@ -361,11 +523,21 @@ export default function Contacts() {
             return;
         }
 
+        if (formData.phone && !isValidPhoneNumber(formData.phone)) {
+            setMessage({ type: 'error', text: 'Formato de telefone inválido' });
+            return;
+        }
+
         try {
+            const dataToSend = {
+                ...formData,
+                phone: formatPhoneNumber(formData.phone)
+            };
+
             const response = await fetch(`/api/contacts/${selectedContact.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(dataToSend),
             });
 
             if (response.ok) {
@@ -381,6 +553,199 @@ export default function Contacts() {
         }
     };
 
+    // Função para processar arquivo CSV
+    const parseCSV = (text: string): any[] => {
+        const lines = text.split('\n').filter(line => line.trim());
+        if (lines.length === 0) return [];
+
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        const data = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            const values: string[] = [];
+            let current = '';
+            let inQuotes = false;
+
+            for (let j = 0; j < lines[i].length; j++) {
+                const char = lines[i][j];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    values.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            values.push(current.trim());
+
+            if (values.length === headers.length) {
+                const row: any = {};
+                headers.forEach((header, index) => {
+                    row[header] = values[index] || '';
+                });
+                data.push(row);
+            }
+        }
+
+        return data;
+    };
+
+    // Função para lidar com upload de arquivo
+    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            setMessage({ type: 'error', text: 'Por favor, selecione um arquivo CSV válido.' });
+            return;
+        }
+
+        setImportFile(file);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const text = e.target?.result as string;
+                const data = parseCSV(text);
+
+                if (data.length === 0) {
+                    setMessage({ type: 'error', text: 'O arquivo CSV está vazio ou inválido.' });
+                    return;
+                }
+
+                setImportData(data);
+
+                // Configuração de mapeamento padrão baseada nos nomes das colunas
+                const headers = Object.keys(data[0]);
+                const defaultMapping: { [key: string]: string } = {};
+
+                headers.forEach(header => {
+                    const lowerHeader = header.toLowerCase();
+                    if (lowerHeader.includes('nome') || lowerHeader.includes('name')) {
+                        defaultMapping['name'] = header;
+                    } else if (lowerHeader.includes('email')) {
+                        defaultMapping['email'] = header;
+                    } else if (lowerHeader.includes('telefone') || lowerHeader.includes('phone')) {
+                        defaultMapping['phone'] = header;
+                    } else if (lowerHeader.includes('cargo') || lowerHeader.includes('position') || lowerHeader.includes('título')) {
+                        defaultMapping['position'] = header;
+                    } else if (lowerHeader.includes('empresa') || lowerHeader.includes('company')) {
+                        defaultMapping['companyName'] = header;
+                    }
+                });
+
+                setImportMapping(defaultMapping);
+                setImportStep('mapping');
+            } catch (error) {
+                setMessage({ type: 'error', text: 'Erro ao processar o arquivo CSV.' });
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    // Função para validar dados de importação
+    const validateImportData = () => {
+        const errors: { row: number; error: string }[] = [];
+
+        importData.forEach((row, index) => {
+            const name = row[importMapping.name];
+            const email = row[importMapping.email];
+            const companyName = row[importMapping.companyName];
+            const phone = row[importMapping.phone];
+
+            if (!name || name.trim() === '') {
+                errors.push({ row: index + 1, error: 'Nome é obrigatório' });
+            }
+            if (!email || email.trim() === '') {
+                errors.push({ row: index + 1, error: 'Email é obrigatório' });
+            } else if (!/\S+@\S+\.\S+/.test(email)) {
+                errors.push({ row: index + 1, error: 'Email inválido' });
+            }
+            if (!companyName || companyName.trim() === '') {
+                errors.push({ row: index + 1, error: 'Empresa é obrigatória' });
+            }
+            if (phone && phone.trim() !== '' && !isValidPhoneNumber(phone)) {
+                errors.push({ row: index + 1, error: 'Formato de telefone inválido' });
+            }
+        });
+
+        return errors;
+    };
+
+    // Função para processar importação
+    const processImport = async () => {
+        setImporting(true);
+        const errors = validateImportData();
+
+        if (errors.length > 0) {
+            setImportResults({ success: 0, errors });
+            setImporting(false);
+            return;
+        }
+
+        let successCount = 0;
+        const importErrors: { row: number; error: string }[] = [];
+
+        for (let i = 0; i < importData.length; i++) {
+            const row = importData[i];
+
+            try {
+                const contactData = {
+                    name: row[importMapping.name]?.trim() || '',
+                    email: row[importMapping.email]?.trim() || '',
+                    phone: formatPhoneNumber(row[importMapping.phone]?.trim() || ''),
+                    position: row[importMapping.position]?.trim() || '',
+                    companyName: row[importMapping.companyName]?.trim() || '',
+                    website: '',
+                    niche: '',
+                    painPoints: '',
+                    previousInteraction: '',
+                    notes: `Importado de CSV em ${new Date().toLocaleDateString('pt-BR')}`,
+                    isActive: true
+                };
+
+                const response = await fetch('/api/contacts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(contactData),
+                });
+
+                if (response.ok) {
+                    successCount++;
+                } else {
+                    const error = await response.json();
+                    importErrors.push({
+                        row: i + 1,
+                        error: error.error || 'Erro ao criar contato'
+                    });
+                }
+            } catch (error) {
+                importErrors.push({
+                    row: i + 1,
+                    error: 'Erro de conexão'
+                });
+            }
+        }
+
+        setImportResults({ success: successCount, errors: importErrors });
+        setImporting(false);
+
+        if (successCount > 0) {
+            fetchContacts(); // Recarregar lista de contatos
+        }
+    };
+
+    // Função para resetar importação
+    const resetImport = () => {
+        setImportFile(null);
+        setImportData([]);
+        setImportMapping({});
+        setImportStep('upload');
+        setImportResults(null);
+        setImporting(false);
+        setShowImportModal(false);
+    };
+
     return (
         <MainLayout>
             <div className="p-8">
@@ -391,17 +756,34 @@ export default function Contacts() {
                             <h1 className="text-3xl font-bold text-white mb-2">
                                 Contatos
                             </h1>
-                            <p className="text-neutral-400">
-                                Gerencie seus contatos e prospects
-                            </p>
+                            <div className="flex items-center gap-4">
+                                <p className="text-neutral-400">
+                                    Gerencie seus contatos e prospects
+                                </p>
+                                <div className="flex items-center gap-2 px-3 py-1 bg-neutral-800 rounded-full border border-neutral-700">
+                                    <Users className="h-4 w-4 text-neutral-400" />
+                                    <span className="text-sm text-neutral-300 font-medium">
+                                        {totalContacts} {totalContacts === 1 ? 'contato' : 'contatos'}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <button
-                            onClick={openCreateModal}
-                            className="flex items-center gap-2 px-4 py-2 bg-white text-black font-medium rounded-lg hover:bg-neutral-200 transition-colors cursor-pointer"
-                        >
-                            <Plus className="h-4 w-4" />
-                            Novo Contato
-                        </button>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowImportModal(true)}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+                            >
+                                <Upload className="h-4 w-4" />
+                                Importar CSV
+                            </button>
+                            <button
+                                onClick={openCreateModal}
+                                className="flex items-center gap-2 px-4 py-2 bg-white text-black font-medium rounded-lg hover:bg-neutral-200 transition-colors cursor-pointer"
+                            >
+                                <Plus className="h-4 w-4" />
+                                Novo Contato
+                            </button>
+                        </div>
                     </div>
 
                     {/* Message */}
@@ -444,6 +826,17 @@ export default function Contacts() {
                                     <option value="">Todos os status</option>
                                     <option value="true">Ativos</option>
                                     <option value="false">Inativos</option>
+                                </select>
+                                <select
+                                    className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-white cursor-pointer"
+                                    value={itemsPerPage}
+                                    onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                                >
+                                    <option value={10}>10 por página</option>
+                                    <option value={25}>25 por página</option>
+                                    <option value={50}>50 por página</option>
+                                    <option value={100}>100 por página</option>
+                                    <option value={-1}>Ver todos</option>
                                 </select>
                                 <button
                                     type="submit"
@@ -556,9 +949,9 @@ export default function Contacts() {
 
                                                     {/* Linha 2: Empresa + Email */}
                                                     <div className="flex items-center gap-4 mb-1">
-                                                        <div className="flex items-center gap-1.5 text-sm text-neutral-300">
+                                                        <div className="flex items-center gap-1.5 text-sm">
                                                             <Building2 className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
-                                                            <span className="truncate">{contact.companyName}</span>
+                                                            <span className="truncate text-blue-300 font-medium">{contact.companyName}</span>
                                                         </div>
                                                         <div className="flex items-center gap-1.5 text-sm text-neutral-300">
                                                             <Mail className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
@@ -572,7 +965,7 @@ export default function Contacts() {
                                                             {contact.phone && (
                                                                 <div className="flex items-center gap-1.5">
                                                                     <Phone className="h-3 w-3 flex-shrink-0" />
-                                                                    <span>{contact.phone}</span>
+                                                                    <span>{formatPhoneNumber(contact.phone)}</span>
                                                                 </div>
                                                             )}
                                                             {contact.niche && (
@@ -639,8 +1032,20 @@ export default function Contacts() {
                         </div>
                     )}
 
+                    {/* Indicador "Ver todos" */}
+                    {contacts.length > 0 && itemsPerPage === -1 && (
+                        <div className="mt-8 flex items-center justify-center">
+                            <div className="flex items-center gap-2 px-4 py-2 bg-blue-900/20 border border-blue-700 rounded-lg">
+                                <Users className="h-4 w-4 text-blue-400" />
+                                <span className="text-blue-300 text-sm">
+                                    Exibindo todos os {totalContacts} contatos
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Pagination */}
-                    {contacts.length > 0 && totalPages > 1 && (
+                    {contacts.length > 0 && totalPages > 1 && itemsPerPage !== -1 && (
                         <div className="mt-8 flex items-center justify-center">
                             <div className="flex items-center gap-2">
                                 <button
@@ -664,6 +1069,226 @@ export default function Contacts() {
                         </div>
                     )}
                 </div>
+
+                {/* Import CSV Modal */}
+                {showImportModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-neutral-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden border border-neutral-700">
+                            <div className="p-6 border-b border-neutral-700 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <Upload className="h-6 w-6 text-blue-400" />
+                                    <h2 className="text-xl font-bold text-white">
+                                        Importar Contatos via CSV
+                                    </h2>
+                                </div>
+                                <button
+                                    onClick={resetImport}
+                                    className="text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                                >
+                                    <X className="h-6 w-6" />
+                                </button>
+                            </div>
+
+                            <div className="p-6 overflow-y-auto max-h-[70vh]">
+                                {/* Step 1: Upload */}
+                                {importStep === 'upload' && (
+                                    <div className="space-y-6">
+                                        <div className="text-center">
+                                            <FileText className="h-16 w-16 text-neutral-500 mx-auto mb-4" />
+                                            <h3 className="text-lg font-semibold text-white mb-2">
+                                                Selecione um arquivo CSV
+                                            </h3>
+                                            <p className="text-neutral-400 mb-6">
+                                                O arquivo deve conter colunas para Nome, Email e Empresa (obrigatórios)
+                                            </p>
+                                        </div>
+
+                                        <div className="border-2 border-dashed border-neutral-600 rounded-lg p-8 text-center hover:border-neutral-500 transition-colors">
+                                            <input
+                                                type="file"
+                                                accept=".csv"
+                                                onChange={handleFileUpload}
+                                                className="hidden"
+                                                id="csv-upload"
+                                            />
+                                            <label
+                                                htmlFor="csv-upload"
+                                                className="cursor-pointer block"
+                                            >
+                                                <Upload className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
+                                                <p className="text-white font-medium mb-2">
+                                                    Clique para selecionar ou arraste o arquivo aqui
+                                                </p>
+                                                <p className="text-neutral-400 text-sm">
+                                                    Apenas arquivos .csv são aceitos
+                                                </p>
+                                            </label>
+                                        </div>
+
+                                        <div className="bg-neutral-800 rounded-lg p-4">
+                                            <h4 className="text-white font-medium mb-2">Formato esperado:</h4>
+                                            <div className="text-sm text-neutral-300 space-y-1">
+                                                <p>• <strong>Nome:</strong> Nome completo do contato (obrigatório)</p>
+                                                <p>• <strong>Email:</strong> Endereço de email válido (obrigatório)</p>
+                                                <p>• <strong>Telefone:</strong> Número de telefone (opcional)</p>
+                                                <p>• <strong>Cargo:</strong> Posição na empresa (opcional)</p>
+                                                <p>• <strong>Empresa:</strong> Nome da empresa (obrigatório)</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Step 2: Mapping */}
+                                {importStep === 'mapping' && importData.length > 0 && (
+                                    <div className="space-y-6">
+                                        <div>
+                                            <h3 className="text-lg font-semibold text-white mb-2">
+                                                Mapeamento de Campos
+                                            </h3>
+                                            <p className="text-neutral-400 mb-4">
+                                                Encontramos {importData.length} registros. Configure o mapeamento dos campos:
+                                            </p>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {[
+                                                { key: 'name', label: 'Nome *', required: true },
+                                                { key: 'email', label: 'Email *', required: true },
+                                                { key: 'phone', label: 'Telefone', required: false },
+                                                { key: 'position', label: 'Cargo', required: false },
+                                                { key: 'companyName', label: 'Empresa *', required: true },
+                                            ].map((field) => (
+                                                <div key={field.key}>
+                                                    <label className="block text-sm font-medium text-white mb-2">
+                                                        {field.label}
+                                                    </label>
+                                                    <select
+                                                        value={importMapping[field.key] || ''}
+                                                        onChange={(e) => setImportMapping(prev => ({
+                                                            ...prev,
+                                                            [field.key]: e.target.value
+                                                        }))}
+                                                        className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-white cursor-pointer"
+                                                        required={field.required}
+                                                    >
+                                                        <option value="">Selecione uma coluna</option>
+                                                        {Object.keys(importData[0]).map(header => (
+                                                            <option key={header} value={header}>
+                                                                {header}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Preview */}
+                                        {importMapping.name && importMapping.email && importMapping.companyName && (
+                                            <div>
+                                                <h4 className="text-white font-medium mb-3">Preview (primeiros 3 registros):</h4>
+                                                <div className="bg-neutral-800 rounded-lg p-4 space-y-2">
+                                                    {importData.slice(0, 3).map((row, index) => (
+                                                        <div key={index} className="text-sm text-neutral-300 border-b border-neutral-700 pb-2 last:border-b-0">
+                                                            <p><strong>Nome:</strong> {row[importMapping.name] || 'N/A'}</p>
+                                                            <p><strong>Email:</strong> {row[importMapping.email] || 'N/A'}</p>
+                                                            <p><strong>Empresa:</strong> {row[importMapping.companyName] || 'N/A'}</p>
+                                                            {importMapping.phone && row[importMapping.phone] && (
+                                                                <p><strong>Telefone:</strong> {formatPhoneNumber(row[importMapping.phone])}</p>
+                                                            )}
+                                                            {importMapping.position && row[importMapping.position] && (
+                                                                <p><strong>Cargo:</strong> {row[importMapping.position]}</p>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Step 3: Results */}
+                                {importResults && (
+                                    <div className="space-y-6">
+                                        <div className="text-center">
+                                            {importResults.success > 0 ? (
+                                                <CheckCircle className="h-16 w-16 text-green-400 mx-auto mb-4" />
+                                            ) : (
+                                                <AlertCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
+                                            )}
+                                            <h3 className="text-lg font-semibold text-white mb-2">
+                                                Importação Concluída
+                                            </h3>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="bg-green-900/20 border border-green-700 rounded-lg p-4">
+                                                <h4 className="text-green-300 font-medium mb-2">Sucesso</h4>
+                                                <p className="text-green-200 text-2xl font-bold">
+                                                    {importResults.success}
+                                                </p>
+                                                <p className="text-green-300 text-sm">
+                                                    contatos importados
+                                                </p>
+                                            </div>
+                                            <div className="bg-red-900/20 border border-red-700 rounded-lg p-4">
+                                                <h4 className="text-red-300 font-medium mb-2">Erros</h4>
+                                                <p className="text-red-200 text-2xl font-bold">
+                                                    {importResults.errors.length}
+                                                </p>
+                                                <p className="text-red-300 text-sm">
+                                                    registros com erro
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {importResults.errors.length > 0 && (
+                                            <div>
+                                                <h4 className="text-white font-medium mb-3">Detalhes dos Erros:</h4>
+                                                <div className="bg-neutral-800 rounded-lg p-4 max-h-40 overflow-y-auto">
+                                                    {importResults.errors.map((error, index) => (
+                                                        <div key={index} className="text-sm text-red-300 mb-1">
+                                                            Linha {error.row}: {error.error}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-6 border-t border-neutral-700 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    {importStep === 'mapping' && (
+                                        <button
+                                            onClick={() => setImportStep('upload')}
+                                            className="px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition-colors border border-neutral-600 cursor-pointer"
+                                        >
+                                            Voltar
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={resetImport}
+                                        className="px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition-colors border border-neutral-600 cursor-pointer"
+                                    >
+                                        {importResults ? 'Fechar' : 'Cancelar'}
+                                    </button>
+                                    {importStep === 'mapping' && importMapping.name && importMapping.email && importMapping.companyName && (
+                                        <button
+                                            onClick={processImport}
+                                            disabled={importing}
+                                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                                        >
+                                            {importing ? 'Importando...' : `Importar ${importData.length} Contatos`}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Create Modal */}
                 {showCreateModal && (
@@ -728,7 +1353,7 @@ export default function Contacts() {
                                             value={formData.phone}
                                             onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
-                                            placeholder="(11) 99999-9999"
+                                            placeholder="(11) 99999-9999, +1 555 123-4567"
                                         />
                                     </div>
 
@@ -768,7 +1393,6 @@ export default function Contacts() {
                                             value={formData.website}
                                             onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
-                                            placeholder="https://exemplo.com"
                                         />
                                     </div>
                                 </div>
@@ -823,25 +1447,11 @@ export default function Contacts() {
                                 </div>
 
                                 <div className="flex items-center">
-                                    <label className="flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.isActive}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                                            className="sr-only"
-                                        />
-                                        <div className={`w-4 h-4 rounded border-2 transition-all duration-200 ${formData.isActive
-                                            ? 'bg-blue-600 border-blue-600'
-                                            : 'bg-neutral-800 border-neutral-600 hover:border-neutral-500'
-                                            }`}>
-                                            {formData.isActive && (
-                                                <Check className="w-3 h-3 text-white absolute transform scale-75" />
-                                            )}
-                                        </div>
-                                        <span className="ml-2 text-neutral-300 text-sm">
-                                            Contato ativo
-                                        </span>
-                                    </label>
+                                    <CustomCheckbox
+                                        checked={formData.isActive}
+                                        onChange={() => setFormData(prev => ({ ...prev, isActive: !prev.isActive }))}
+                                        label="Contato ativo"
+                                    />
                                 </div>
                             </form>
 
@@ -926,6 +1536,7 @@ export default function Contacts() {
                                             value={formData.phone}
                                             onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
+                                            placeholder="(11) 99999-9999, +1 555 123-4567"
                                         />
                                     </div>
 
@@ -1013,25 +1624,11 @@ export default function Contacts() {
                                 </div>
 
                                 <div className="flex items-center">
-                                    <label className="flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.isActive}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                                            className="sr-only"
-                                        />
-                                        <div className={`w-4 h-4 rounded border-2 transition-all duration-200 ${formData.isActive
-                                            ? 'bg-blue-600 border-blue-600'
-                                            : 'bg-neutral-800 border-neutral-600 hover:border-neutral-500'
-                                            }`}>
-                                            {formData.isActive && (
-                                                <Check className="w-3 h-3 text-white absolute transform scale-75" />
-                                            )}
-                                        </div>
-                                        <span className="ml-2 text-neutral-300 text-sm">
-                                            Contato ativo
-                                        </span>
-                                    </label>
+                                    <CustomCheckbox
+                                        checked={formData.isActive}
+                                        onChange={() => setFormData(prev => ({ ...prev, isActive: !prev.isActive }))}
+                                        label="Contato ativo"
+                                    />
                                 </div>
                             </form>
 
@@ -1109,4 +1706,4 @@ export default function Contacts() {
             </div>
         </MainLayout>
     );
-} 
+}

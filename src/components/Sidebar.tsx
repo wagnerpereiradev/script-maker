@@ -87,7 +87,7 @@ export default function Sidebar() {
                 {/* Footer */}
                 <div className="border-t border-neutral-800 p-4">
                     <div className="text-xs text-neutral-500">
-                        Powered by OpenAI
+                        Powered by <b><a href="https://wagnerai.me" target="_blank" rel="noopener noreferrer">WagnerAI</a></b>
                     </div>
                 </div>
             </div>

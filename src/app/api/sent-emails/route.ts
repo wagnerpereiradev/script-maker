@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient, type Prisma } from '@/generated/prisma';
+import { requireAuth, unauthorizedResponse } from '@/lib/api-auth';
 
 const prisma = new PrismaClient();
 
 export async function GET(request: NextRequest) {
     try {
+        // Verificar autenticação
+        const { user, error } = requireAuth(request);
+        if (error || !user) {
+            return unauthorizedResponse(error);
+        }
+
         const { searchParams } = new URL(request.url);
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '10');
@@ -65,6 +72,57 @@ export async function GET(request: NextRequest) {
             prisma.emailSent.count({ where }),
         ]);
 
+        // Buscar estatísticas globais (sem filtros de busca/status para ter métricas completas)
+        const globalStats = await prisma.emailSent.groupBy({
+            by: ['status'],
+            _count: {
+                status: true,
+            },
+        });
+
+        // Buscar estatísticas adicionais
+        const [totalEmails, openedEmails, clickedEmails, failedEmails] = await Promise.all([
+            prisma.emailSent.count(),
+            prisma.emailSent.count({ where: { opened: true } }),
+            prisma.emailSent.count({ where: { clicked: true } }),
+            prisma.emailSent.count({
+                where: {
+                    status: {
+                        in: ['failed', 'bounced']
+                    }
+                }
+            }),
+        ]);
+
+        // Processar estatísticas corrigidas
+        const stats = {
+            total: totalEmails,
+            sent: 0,
+            delivered: totalEmails - failedEmails,
+            opened: openedEmails,
+            clicked: clickedEmails,
+            failed: failedEmails,
+            pending: 0,
+        };
+
+        // Contar por status para sent e pending
+        globalStats.forEach((stat) => {
+            const count = stat._count.status;
+            switch (stat.status) {
+                case 'sent':
+                case 'delivered':
+                case 'opened':
+                case 'clicked':
+                    stats.sent += count;
+                    break;
+                case 'pending':
+                case 'sending':
+                    stats.pending += count;
+                    break;
+                // failed e bounced já foram contados acima
+            }
+        });
+
         const pages = Math.ceil(total / limit);
 
         return NextResponse.json({
@@ -76,6 +134,7 @@ export async function GET(request: NextRequest) {
                 hasNext: page < pages,
                 hasPrev: page > 1,
             },
+            stats,
         });
     } catch (error) {
         console.error('Erro ao buscar emails enviados:', error);

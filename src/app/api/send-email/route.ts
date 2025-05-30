@@ -3,6 +3,8 @@ import nodemailer from 'nodemailer';
 import { PrismaClient } from '@/generated/prisma';
 import { getSMTPConfig, getSMTPPassword } from '@/lib/settings';
 import { randomBytes } from 'crypto';
+import { addEmailTracking, getBaseUrl } from '@/lib/email-tracking';
+import { requireAuth, unauthorizedResponse } from '@/lib/api-auth';
 
 const prisma = new PrismaClient();
 
@@ -19,6 +21,12 @@ interface SendEmailRequest {
 
 export async function POST(request: NextRequest) {
     try {
+        // Verificar autenticação
+        const { user, error } = requireAuth(request);
+        if (error || !user) {
+            return unauthorizedResponse(error);
+        }
+
         const body: SendEmailRequest = await request.json();
         const {
             contactId,
@@ -50,54 +58,91 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Gerar ID de tracking único
+        // Gerar ID de rastreamento único
         const trackingId = randomBytes(16).toString('hex');
 
-        // Criar transporter do nodemailer
+        // Obter URL base para tracking
+        const baseUrl = getBaseUrl(request);
+
+        // Processar conteúdo HTML com tracking
+        const htmlContentWithTracking = addEmailTracking(htmlContent, trackingId, baseUrl);
+
+        // Criar registro de email na base de dados
+        const emailRecord = await prisma.emailSent.create({
+            data: {
+                contactId,
+                scriptId,
+                templateId,
+                toEmail,
+                toName,
+                subject,
+                htmlContent: htmlContentWithTracking,
+                textContent,
+                fromEmail: smtpConfig.fromEmail || smtpConfig.username || '',
+                fromName: smtpConfig.fromName || smtpConfig.username || '',
+                smtpHost: smtpConfig.host || '',
+                smtpPort: smtpConfig.port || 587,
+                status: 'pending',
+                trackingId,
+                opened: false,
+                clicked: false,
+                bounced: false,
+            },
+        });
+
+        // Configurar transporter com melhor handling de erros
         const transporter = nodemailer.createTransport({
             host: smtpConfig.host,
             port: smtpConfig.port || 587,
-            secure: smtpConfig.secure,
+            secure: smtpConfig.port === 465,
             auth: {
                 user: smtpConfig.username,
                 pass: smtpPassword,
             },
+            // Configurações adicionais para melhor tracking de erros
+            connectionTimeout: 60000, // 60 segundos
+            greetingTimeout: 30000,   // 30 segundos
+            socketTimeout: 60000,     // 60 segundos
         });
 
-        // Adicionar tracking ID ao HTML se necessário
-        let finalHtmlContent = htmlContent;
-        if (finalHtmlContent && !finalHtmlContent.includes('tracking-pixel')) {
-            finalHtmlContent += `<img src="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/email-tracking/${trackingId}" width="1" height="1" style="display:none;" alt="" class="tracking-pixel" />`;
+        // Verificar conexão SMTP
+        try {
+            await transporter.verify();
+        } catch (verifyError) {
+            console.error('Erro na verificação SMTP:', verifyError);
+
+            await prisma.emailSent.update({
+                where: { id: emailRecord.id },
+                data: {
+                    status: 'failed',
+                    errorMessage: `Erro de conexão SMTP: ${verifyError instanceof Error ? verifyError.message : 'Erro desconhecido'}`,
+                },
+            });
+
+            return NextResponse.json(
+                { error: 'Erro de conexão SMTP: ' + (verifyError instanceof Error ? verifyError.message : 'Erro desconhecido') },
+                { status: 500 }
+            );
         }
 
-        // Preparar dados do email
+        // Atualizar status para enviando
+        await prisma.emailSent.update({
+            where: { id: emailRecord.id },
+            data: { status: 'sending' },
+        });
+
         const mailOptions = {
-            from: `${smtpConfig.fromName} <${smtpConfig.fromEmail}>`,
+            from: `${smtpConfig.fromName || smtpConfig.username} <${smtpConfig.fromEmail || smtpConfig.username}>`,
             to: `${toName} <${toEmail}>`,
             subject: subject,
-            html: finalHtmlContent,
-            text: textContent || htmlContent.replace(/<[^>]*>/g, ''), // Remove HTML tags for text version
-        };
-
-        // Salvar registro no banco antes do envio
-        const emailRecord = await prisma.emailSent.create({
-            data: {
-                contactId,
-                scriptId: scriptId || null,
-                templateId: templateId || null,
-                toEmail,
-                toName,
-                subject,
-                htmlContent: finalHtmlContent,
-                textContent: textContent || null,
-                fromEmail: smtpConfig.fromEmail!,
-                fromName: smtpConfig.fromName!,
-                smtpHost: smtpConfig.host,
-                smtpPort: smtpConfig.port || 587,
-                status: 'sending',
-                trackingId,
+            html: htmlContentWithTracking,
+            text: textContent,
+            // Headers para melhor deliverability
+            headers: {
+                'X-Mailer': 'Script Maker',
+                'X-Tracking-ID': trackingId,
             },
-        });
+        };
 
         try {
             // Enviar email
@@ -116,22 +161,63 @@ export async function POST(request: NextRequest) {
                 message: 'Email enviado com sucesso!',
                 messageId: result.messageId,
                 trackingId: trackingId,
+                trackingUrls: {
+                    open: `${baseUrl}/api/track/open/${trackingId}`,
+                    click: `${baseUrl}/api/track/click/${trackingId}`,
+                },
             });
 
-        } catch (emailError) {
+        } catch (emailError: any) {
             console.error('Erro ao enviar email:', emailError);
 
-            // Atualizar status para falhou
+            // Determinar tipo de erro e status apropriado
+            let errorStatus = 'failed';
+            let errorMessage = 'Erro desconhecido';
+
+            if (emailError.code) {
+                switch (emailError.code) {
+                    case 'EENVELOPE':
+                    case 'EMESSAGE':
+                        errorStatus = 'bounced';
+                        errorMessage = `Email rejeitado: ${emailError.message}`;
+                        break;
+                    case 'ECONNECTION':
+                    case 'EAUTH':
+                        errorStatus = 'failed';
+                        errorMessage = `Erro de conexão/autenticação: ${emailError.message}`;
+                        break;
+                    case 'ETIMEDOUT':
+                        errorStatus = 'failed';
+                        errorMessage = `Timeout na conexão: ${emailError.message}`;
+                        break;
+                    default:
+                        errorMessage = emailError.message || 'Erro no envio';
+                }
+            } else if (emailError.response) {
+                // Erros SMTP específicos
+                const responseCode = emailError.responseCode;
+                if (responseCode >= 500 && responseCode < 600) {
+                    errorStatus = 'bounced';
+                    errorMessage = `Email rejeitado pelo servidor: ${emailError.response}`;
+                } else {
+                    errorMessage = `Erro SMTP: ${emailError.response}`;
+                }
+            } else {
+                errorMessage = emailError.message || 'Erro desconhecido no envio';
+            }
+
+            // Atualizar status para falhou ou bounced
             await prisma.emailSent.update({
                 where: { id: emailRecord.id },
                 data: {
-                    status: 'failed',
-                    errorMessage: emailError instanceof Error ? emailError.message : 'Erro desconhecido',
+                    status: errorStatus as any,
+                    errorMessage: errorMessage,
+                    bounced: errorStatus === 'bounced',
                 },
             });
 
             return NextResponse.json(
-                { error: 'Falha ao enviar email: ' + (emailError instanceof Error ? emailError.message : 'Erro desconhecido') },
+                { error: errorMessage },
                 { status: 500 }
             );
         }

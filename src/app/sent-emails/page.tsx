@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import MainLayout from '@/components/MainLayout';
-import { Search, Filter, Mail, Calendar, User, Building, Eye, X, Check, Clock, AlertCircle, Send, ExternalLink } from 'lucide-react';
+import { Search, Filter, Mail, Calendar, User, Building, Eye, X, Check, Clock, AlertCircle, Send, ExternalLink, TrendingUp, Activity, Zap, ChevronRight } from 'lucide-react';
 
 interface SentEmail {
     id: string;
@@ -41,6 +41,294 @@ interface SentEmail {
     };
 }
 
+// Componente de Timeline de Status do Email
+const EmailStatusTimeline = ({ email }: { email: SentEmail }) => {
+    const steps = [
+        {
+            id: 'pending',
+            label: 'Criado',
+            description: 'Email foi criado',
+            icon: Clock,
+            timestamp: email.createdAt,
+            completed: true
+        },
+        {
+            id: 'sent',
+            label: 'Enviado',
+            description: 'Email foi enviado pelo servidor',
+            icon: Send,
+            timestamp: email.sentAt,
+            completed: ['sent', 'delivered', 'opened', 'clicked'].includes(email.status)
+        },
+        {
+            id: 'delivered',
+            label: 'Entregue',
+            description: 'Email chegou na caixa de entrada',
+            icon: Check,
+            timestamp: email.deliveredAt,
+            completed: ['delivered', 'opened', 'clicked'].includes(email.status)
+        },
+        {
+            id: 'opened',
+            label: 'Aberto',
+            description: 'Destinatário abriu o email',
+            icon: Eye,
+            timestamp: email.openedAt,
+            completed: email.opened || ['opened', 'clicked'].includes(email.status)
+        },
+        {
+            id: 'clicked',
+            label: 'Clicado',
+            description: 'Destinatário clicou em um link',
+            icon: ExternalLink,
+            timestamp: email.clickedAt,
+            completed: email.clicked || email.status === 'clicked'
+        }
+    ];
+
+    const isError = ['failed', 'bounced'].includes(email.status);
+    const currentStep = email.status;
+
+    return (
+        <div className="bg-neutral-800/50 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-blue-400" />
+                    Linha do Tempo do Email
+                </h4>
+                {isError && (
+                    <div className="flex items-center gap-1 px-2 py-1 bg-red-900/50 text-red-300 rounded text-xs border border-red-700">
+                        <AlertCircle className="h-3 w-3" />
+                        {email.status === 'failed' ? 'Falhou' : 'Rejeitado'}
+                    </div>
+                )}
+            </div>
+
+            <div className="space-y-3">
+                {steps.map((step, index) => {
+                    const Icon = step.icon;
+                    const isCurrentStep = currentStep === step.id;
+                    const isActive = step.completed || isCurrentStep;
+                    const showError = isError && step.id === 'sent';
+
+                    return (
+                        <div key={step.id} className="flex items-start gap-3 relative">
+                            {/* Conectores entre steps */}
+                            {index < steps.length - 1 && (
+                                <div className={`absolute left-4 top-8 w-0.5 h-6 ${isActive && !isError ? 'bg-blue-500' : 'bg-neutral-600'}`} />
+                            )}
+
+                            {/* Ícone do step */}
+                            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center border-2 ${showError
+                                ? 'bg-red-900/50 border-red-600 text-red-300'
+                                : isActive
+                                    ? isCurrentStep
+                                        ? 'bg-blue-600 border-blue-500 text-white animate-pulse'
+                                        : 'bg-green-600 border-green-500 text-white'
+                                    : 'bg-neutral-700 border-neutral-600 text-neutral-400'
+                                }`}>
+                                {showError ? (
+                                    <X className="h-4 w-4" />
+                                ) : isActive && !isCurrentStep ? (
+                                    <Check className="h-3 w-3" />
+                                ) : (
+                                    <Icon className="h-3 w-3" />
+                                )}
+                            </div>
+
+                            {/* Conteúdo do step */}
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                    <div className={`text-sm font-medium ${isActive ? 'text-white' : 'text-neutral-400'}`}>
+                                        {step.label}
+                                        {isCurrentStep && !isError && (
+                                            <span className="ml-2 px-2 py-0.5 bg-blue-900/50 text-blue-300 rounded text-xs border border-blue-700">
+                                                Atual
+                                            </span>
+                                        )}
+                                    </div>
+                                    {step.timestamp && (
+                                        <div className="text-xs text-neutral-500">
+                                            {new Date(step.timestamp).toLocaleString('pt-BR', {
+                                                day: '2-digit',
+                                                month: '2-digit',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className={`text-xs ${isActive ? 'text-neutral-300' : 'text-neutral-500'}`}>
+                                    {showError ? email.errorMessage || 'Falha no envio do email' : step.description}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+// Componente de Status Badge Melhorado
+const StatusBadge = ({ email }: { email: SentEmail }) => {
+    const getStatusConfig = (status: string) => {
+        const configs = {
+            pending: {
+                label: 'Pendente',
+                icon: Clock,
+                color: 'bg-yellow-900/50 text-yellow-300 border-yellow-700',
+                pulse: false
+            },
+            sending: {
+                label: 'Enviando',
+                icon: Send,
+                color: 'bg-blue-900/50 text-blue-300 border-blue-700',
+                pulse: true
+            },
+            sent: {
+                label: 'Enviado',
+                icon: Send,
+                color: 'bg-green-900/50 text-green-300 border-green-700',
+                pulse: false
+            },
+            delivered: {
+                label: 'Entregue',
+                icon: Check,
+                color: 'bg-green-900/50 text-green-300 border-green-700',
+                pulse: false
+            },
+            opened: {
+                label: 'Aberto',
+                icon: Eye,
+                color: 'bg-purple-900/50 text-purple-300 border-purple-700',
+                pulse: false
+            },
+            clicked: {
+                label: 'Clicado',
+                icon: ExternalLink,
+                color: 'bg-indigo-900/50 text-indigo-300 border-indigo-700',
+                pulse: false
+            },
+            bounced: {
+                label: 'Rejeitado',
+                icon: AlertCircle,
+                color: 'bg-orange-900/50 text-orange-300 border-orange-700',
+                pulse: false
+            },
+            failed: {
+                label: 'Falhou',
+                icon: X,
+                color: 'bg-red-900/50 text-red-300 border-red-700',
+                pulse: false
+            }
+        };
+        return configs[status as keyof typeof configs] || configs.pending;
+    };
+
+    const config = getStatusConfig(email.status);
+    const Icon = config.icon;
+
+    return (
+        <div className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium border ${config.color} ${config.pulse ? 'animate-pulse' : ''}`}>
+            <Icon className="h-3 w-3" />
+            <span>{config.label}</span>
+            {email.opened && email.status !== 'opened' && email.status !== 'clicked' && (
+                <div className="w-1 h-1 bg-purple-400 rounded-full ml-1" title="Email foi aberto" />
+            )}
+            {email.clicked && email.status !== 'clicked' && (
+                <div className="w-1 h-1 bg-indigo-400 rounded-full ml-1" title="Links foram clicados" />
+            )}
+        </div>
+    );
+};
+
+// Componente de Métricas de Engajamento
+const EngagementMetrics = ({ stats }: {
+    stats: {
+        total: number;
+        sent: number;
+        delivered: number;
+        opened: number;
+        clicked: number;
+        failed: number;
+        pending: number;
+    }
+}) => {
+    const deliveryRate = stats.total > 0 ? (stats.delivered / stats.total * 100) : 0;
+    const openRate = stats.delivered > 0 ? (stats.opened / stats.delivered * 100) : 0;
+    const clickRate = stats.opened > 0 ? (stats.clicked / stats.opened * 100) : 0;
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
+            <div className="bg-neutral-gradient rounded-lg p-4 border border-neutral-800">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-neutral-400 text-sm">Total</p>
+                        <p className="text-2xl font-bold text-white">{stats.total}</p>
+                    </div>
+                    <Mail className="h-8 w-8 text-blue-400" />
+                </div>
+            </div>
+
+            <div className="bg-neutral-gradient rounded-lg p-4 border border-neutral-800">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-neutral-400 text-sm">Entregues</p>
+                        <p className="text-2xl font-bold text-green-300">{stats.delivered}</p>
+                        <p className="text-xs text-neutral-500">{deliveryRate.toFixed(1)}%</p>
+                    </div>
+                    <Check className="h-8 w-8 text-green-400" />
+                </div>
+            </div>
+
+            <div className="bg-neutral-gradient rounded-lg p-4 border border-neutral-800">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-neutral-400 text-sm">Abertos</p>
+                        <p className="text-2xl font-bold text-purple-300">{stats.opened}</p>
+                        <p className="text-xs text-neutral-500">{openRate.toFixed(1)}%</p>
+                    </div>
+                    <Eye className="h-8 w-8 text-purple-400" />
+                </div>
+            </div>
+
+            <div className="bg-neutral-gradient rounded-lg p-4 border border-neutral-800">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-neutral-400 text-sm">Clicados</p>
+                        <p className="text-2xl font-bold text-indigo-300">{stats.clicked}</p>
+                        <p className="text-xs text-neutral-500">{clickRate.toFixed(1)}%</p>
+                    </div>
+                    <ExternalLink className="h-8 w-8 text-indigo-400" />
+                </div>
+            </div>
+
+            <div className="bg-neutral-gradient rounded-lg p-4 border border-neutral-800">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-neutral-400 text-sm">Falharam</p>
+                        <p className="text-2xl font-bold text-red-300">{stats.failed}</p>
+                        <p className="text-xs text-neutral-500">{stats.total > 0 ? (stats.failed / stats.total * 100).toFixed(1) : 0}%</p>
+                    </div>
+                    <AlertCircle className="h-8 w-8 text-red-400" />
+                </div>
+            </div>
+
+            <div className="bg-neutral-gradient rounded-lg p-4 border border-neutral-800">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-neutral-400 text-sm">Performance</p>
+                        <p className="text-2xl font-bold text-blue-300">{((deliveryRate + openRate + clickRate) / 3).toFixed(0)}%</p>
+                        <p className="text-xs text-neutral-500">Média geral</p>
+                    </div>
+                    <TrendingUp className="h-8 w-8 text-blue-400" />
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function SentEmails() {
     const [emails, setEmails] = useState<SentEmail[]>([]);
     const [loading, setLoading] = useState(true);
@@ -49,6 +337,15 @@ export default function SentEmails() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [total, setTotal] = useState(0);
+    const [globalStats, setGlobalStats] = useState({
+        total: 0,
+        sent: 0,
+        delivered: 0,
+        opened: 0,
+        clicked: 0,
+        failed: 0,
+        pending: 0,
+    });
 
     // Modal states
     const [selectedEmail, setSelectedEmail] = useState<SentEmail | null>(null);
@@ -73,6 +370,7 @@ export default function SentEmails() {
                 setEmails(data.emails);
                 setTotalPages(data.pagination.pages);
                 setTotal(data.pagination.total);
+                setGlobalStats(data.stats);
             } else {
                 setMessage({ type: 'error', text: 'Erro ao carregar emails enviados' });
             }
@@ -179,50 +477,7 @@ export default function SentEmails() {
                     )}
 
                     {/* Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <div className="bg-neutral-gradient rounded-lg p-4 border border-neutral-800">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-neutral-400 text-sm">Total Enviados</p>
-                                    <p className="text-2xl font-bold text-white">{total}</p>
-                                </div>
-                                <Mail className="h-8 w-8 text-blue-400" />
-                            </div>
-                        </div>
-                        <div className="bg-neutral-gradient rounded-lg p-4 border border-neutral-800">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-neutral-400 text-sm">Entregues</p>
-                                    <p className="text-2xl font-bold text-green-300">
-                                        {emails.filter(e => ['sent', 'delivered', 'opened', 'clicked'].includes(e.status)).length}
-                                    </p>
-                                </div>
-                                <Check className="h-8 w-8 text-green-400" />
-                            </div>
-                        </div>
-                        <div className="bg-neutral-gradient rounded-lg p-4 border border-neutral-800">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-neutral-400 text-sm">Abertos</p>
-                                    <p className="text-2xl font-bold text-purple-300">
-                                        {emails.filter(e => e.opened || ['opened', 'clicked'].includes(e.status)).length}
-                                    </p>
-                                </div>
-                                <Eye className="h-8 w-8 text-purple-400" />
-                            </div>
-                        </div>
-                        <div className="bg-neutral-gradient rounded-lg p-4 border border-neutral-800">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-neutral-400 text-sm">Falharam</p>
-                                    <p className="text-2xl font-bold text-red-300">
-                                        {emails.filter(e => ['failed', 'bounced'].includes(e.status)).length}
-                                    </p>
-                                </div>
-                                <AlertCircle className="h-8 w-8 text-red-400" />
-                            </div>
-                        </div>
-                    </div>
+                    <EngagementMetrics stats={globalStats} />
 
                     {/* Filters and Search */}
                     <div className="bg-neutral-gradient rounded-lg p-6 border border-neutral-800 mb-6">
@@ -292,8 +547,6 @@ export default function SentEmails() {
                     ) : (
                         <div className="space-y-3">
                             {emails.map((email) => {
-                                const StatusIcon = getStatusIcon(email.status);
-
                                 return (
                                     <div
                                         key={email.id}
@@ -303,7 +556,15 @@ export default function SentEmails() {
                                             {/* Status Icon */}
                                             <div className="flex-shrink-0">
                                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getStatusColor(email.status)}`}>
-                                                    <StatusIcon className="w-4 h-4" />
+                                                    <div className="w-4 h-4">
+                                                        {email.status === 'pending' && <Clock className="w-4 h-4" />}
+                                                        {email.status === 'sending' && <Send className="w-4 h-4" />}
+                                                        {['sent', 'delivered'].includes(email.status) && <Check className="w-4 h-4" />}
+                                                        {email.status === 'opened' && <Eye className="w-4 h-4" />}
+                                                        {email.status === 'clicked' && <ExternalLink className="w-4 h-4" />}
+                                                        {email.status === 'bounced' && <AlertCircle className="w-4 h-4" />}
+                                                        {email.status === 'failed' && <X className="w-4 h-4" />}
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -312,17 +573,15 @@ export default function SentEmails() {
                                                 <div className="flex items-start justify-between">
                                                     <div className="flex-1 min-w-0 pr-4">
                                                         {/* Linha 1: Assunto + Status */}
-                                                        <div className="flex items-center gap-3 mb-1">
+                                                        <div className="flex items-center gap-3 mb-2">
                                                             <h3 className="text-base font-semibold text-white truncate">
                                                                 {email.subject}
                                                             </h3>
-                                                            <span className={`px-2 py-0.5 rounded text-xs font-medium border flex-shrink-0 ${getStatusColor(email.status)}`}>
-                                                                {getStatusLabel(email.status)}
-                                                            </span>
+                                                            <StatusBadge email={email} />
                                                         </div>
 
                                                         {/* Linha 2: Destinatário + Empresa */}
-                                                        <div className="flex items-center gap-4 mb-1">
+                                                        <div className="flex items-center gap-4 mb-2">
                                                             <div className="flex items-center gap-1.5 text-sm text-neutral-300">
                                                                 <User className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
                                                                 <span className="truncate">{email.toName} ({email.toEmail})</span>
@@ -335,7 +594,35 @@ export default function SentEmails() {
                                                             )}
                                                         </div>
 
-                                                        {/* Linha 3: Template + Data */}
+                                                        {/* Linha 3: Informações detalhadas do status */}
+                                                        <div className="flex items-center gap-4 mb-2">
+                                                            {email.sentAt && (
+                                                                <div className="flex items-center gap-1 text-xs text-neutral-400">
+                                                                    <Send className="h-3 w-3" />
+                                                                    <span>Enviado: {new Date(email.sentAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                                                </div>
+                                                            )}
+                                                            {email.deliveredAt && (
+                                                                <div className="flex items-center gap-1 text-xs text-green-400">
+                                                                    <Check className="h-3 w-3" />
+                                                                    <span>Entregue: {new Date(email.deliveredAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                                                </div>
+                                                            )}
+                                                            {email.openedAt && (
+                                                                <div className="flex items-center gap-1 text-xs text-purple-400">
+                                                                    <Eye className="h-3 w-3" />
+                                                                    <span>Aberto: {new Date(email.openedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                                                </div>
+                                                            )}
+                                                            {email.clickedAt && (
+                                                                <div className="flex items-center gap-1 text-xs text-indigo-400">
+                                                                    <ExternalLink className="h-3 w-3" />
+                                                                    <span>Clicado: {new Date(email.clickedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Linha 4: Template + Data de criação */}
                                                         <div className="flex items-center justify-between">
                                                             <div className="flex items-center gap-4 text-xs text-neutral-400">
                                                                 {email.template && (
@@ -348,10 +635,16 @@ export default function SentEmails() {
                                                                         {email.script.emailType.replace('_', ' ')}
                                                                     </span>
                                                                 )}
+                                                                {email.errorMessage && (
+                                                                    <div className="flex items-center gap-1 text-red-400">
+                                                                        <AlertCircle className="h-3 w-3" />
+                                                                        <span className="truncate max-w-48">{email.errorMessage}</span>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                             <div className="flex items-center text-xs text-neutral-500 flex-shrink-0">
                                                                 <Calendar className="h-3 w-3 mr-1" />
-                                                                {email.sentAt ? new Date(email.sentAt).toLocaleString('pt-BR') : new Date(email.createdAt).toLocaleString('pt-BR')}
+                                                                {new Date(email.createdAt).toLocaleString('pt-BR')}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -360,11 +653,12 @@ export default function SentEmails() {
                                                     <div className="flex-shrink-0">
                                                         <button
                                                             onClick={() => openModal(email)}
-                                                            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-neutral-800 text-white rounded-md hover:bg-neutral-700 transition-colors border border-neutral-600 text-xs cursor-pointer"
-                                                            title="Visualizar email"
+                                                            className="flex items-center gap-1.5 px-3 py-2 bg-neutral-800 text-white rounded-md hover:bg-neutral-700 transition-colors border border-neutral-600 text-xs cursor-pointer"
+                                                            title="Ver detalhes e linha do tempo"
                                                         >
                                                             <Eye className="h-3.5 w-3.5" />
-                                                            <span className="hidden sm:inline">Ver</span>
+                                                            <span className="hidden sm:inline">Detalhes</span>
+                                                            <ChevronRight className="h-3 w-3" />
                                                         </button>
                                                     </div>
                                                 </div>
@@ -404,83 +698,213 @@ export default function SentEmails() {
 
                 {/* Modal */}
                 {showModal && selectedEmail && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                        <div className="bg-neutral-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden border border-neutral-700">
+                    <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                        <div className="bg-neutral-900 rounded-xl max-w-6xl w-full max-h-[90vh] overflow-hidden border border-neutral-700 shadow-2xl">
                             {/* Modal Header */}
-                            <div className="p-6 border-b border-neutral-700 flex items-center justify-between">
-                                <h2 className="text-xl font-bold text-white">
-                                    {selectedEmail.subject}
-                                </h2>
+                            <div className="p-6 border-b border-neutral-700 flex items-center justify-between bg-gradient-to-r from-neutral-800 to-neutral-900">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex-shrink-0">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getStatusColor(selectedEmail.status)}`}>
+                                            <div className="w-5 h-5">
+                                                {selectedEmail.status === 'pending' && <Clock className="w-5 h-5" />}
+                                                {selectedEmail.status === 'sending' && <Send className="w-5 h-5" />}
+                                                {['sent', 'delivered'].includes(selectedEmail.status) && <Check className="w-5 h-5" />}
+                                                {selectedEmail.status === 'opened' && <Eye className="w-5 h-5" />}
+                                                {selectedEmail.status === 'clicked' && <ExternalLink className="w-5 h-5" />}
+                                                {selectedEmail.status === 'bounced' && <AlertCircle className="w-5 h-5" />}
+                                                {selectedEmail.status === 'failed' && <X className="w-5 h-5" />}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-bold text-white mb-1">
+                                            {selectedEmail.subject}
+                                        </h2>
+                                        <div className="flex items-center gap-2">
+                                            <StatusBadge email={selectedEmail} />
+                                            <span className="text-neutral-400 text-sm">
+                                                • {selectedEmail.toName} ({selectedEmail.contact.companyName})
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
                                 <button
                                     onClick={closeModal}
-                                    className="text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                                    className="text-neutral-400 hover:text-white transition-colors p-2 hover:bg-neutral-800 rounded-lg cursor-pointer"
                                 >
                                     <X className="h-6 w-6" />
                                 </button>
                             </div>
 
                             {/* Modal Content */}
-                            <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
-                                {/* Email Details */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-neutral-800 rounded-lg">
-                                    <div>
-                                        <h4 className="font-medium text-white mb-2">Informações do Envio</h4>
-                                        <div className="space-y-1 text-sm text-neutral-300">
-                                            <p><strong>Para:</strong> {selectedEmail.toName} ({selectedEmail.toEmail})</p>
-                                            <p><strong>De:</strong> {selectedEmail.fromName} ({selectedEmail.fromEmail})</p>
-                                            <p><strong>Status:</strong> <span className={`px-2 py-0.5 rounded text-xs ${getStatusColor(selectedEmail.status)}`}>{getStatusLabel(selectedEmail.status)}</span></p>
-                                            <p><strong>SMTP:</strong> {selectedEmail.smtpHost}:{selectedEmail.smtpPort}</p>
+                            <div className="flex max-h-[calc(90vh-200px)]">
+                                {/* Coluna esquerda - Informações */}
+                                <div className="w-1/2 p-6 overflow-y-auto border-r border-neutral-700">
+                                    {/* Email Details */}
+                                    <div className="mb-6">
+                                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                                            <Mail className="h-5 w-5 text-blue-400" />
+                                            Detalhes do Email
+                                        </h3>
+
+                                        <div className="space-y-4">
+                                            <div className="bg-neutral-800/50 rounded-lg p-4">
+                                                <h4 className="font-medium text-white mb-3">Envio</h4>
+                                                <div className="space-y-2 text-sm">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-neutral-400">Para:</span>
+                                                        <span className="text-white">{selectedEmail.toName}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-neutral-400">Email:</span>
+                                                        <span className="text-white">{selectedEmail.toEmail}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-neutral-400">De:</span>
+                                                        <span className="text-white">{selectedEmail.fromName}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-neutral-400">Email remetente:</span>
+                                                        <span className="text-white">{selectedEmail.fromEmail}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-neutral-800/50 rounded-lg p-4">
+                                                <h4 className="font-medium text-white mb-3">Configuração SMTP</h4>
+                                                <div className="space-y-2 text-sm">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-neutral-400">Servidor:</span>
+                                                        <span className="text-white">{selectedEmail.smtpHost}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-neutral-400">Porta:</span>
+                                                        <span className="text-white">{selectedEmail.smtpPort}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {selectedEmail.template && (
+                                                <div className="bg-neutral-800/50 rounded-lg p-4">
+                                                    <h4 className="font-medium text-white mb-3">Template</h4>
+                                                    <div className="text-sm">
+                                                        <span className="px-2 py-1 bg-blue-900/50 text-blue-300 rounded text-xs border border-blue-700">
+                                                            {selectedEmail.template.name}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {selectedEmail.script && (
+                                                <div className="bg-neutral-800/50 rounded-lg p-4">
+                                                    <h4 className="font-medium text-white mb-3">Script</h4>
+                                                    <div className="text-sm">
+                                                        <span className="px-2 py-1 bg-green-900/50 text-green-300 rounded text-xs border border-green-700 capitalize">
+                                                            {selectedEmail.script.emailType.replace('_', ' ')}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
+
+                                    {/* Error Message */}
+                                    {selectedEmail.errorMessage && (
+                                        <div className="mb-6">
+                                            <h3 className="text-lg font-semibold text-red-300 mb-4 flex items-center gap-2">
+                                                <AlertCircle className="h-5 w-5" />
+                                                Erro no Envio
+                                            </h3>
+                                            <div className="bg-red-900/50 border border-red-700 rounded-lg p-4">
+                                                <p className="text-red-200 text-sm leading-relaxed">{selectedEmail.errorMessage}</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Email Content Preview */}
                                     <div>
-                                        <h4 className="font-medium text-white mb-2">Rastreamento</h4>
-                                        <div className="space-y-1 text-sm text-neutral-300">
-                                            <p><strong>Criado:</strong> {new Date(selectedEmail.createdAt).toLocaleString('pt-BR')}</p>
-                                            {selectedEmail.sentAt && (
-                                                <p><strong>Enviado:</strong> {new Date(selectedEmail.sentAt).toLocaleString('pt-BR')}</p>
-                                            )}
-                                            {selectedEmail.openedAt && (
-                                                <p><strong>Aberto:</strong> {new Date(selectedEmail.openedAt).toLocaleString('pt-BR')}</p>
-                                            )}
-                                            {selectedEmail.clickedAt && (
-                                                <p><strong>Clicado:</strong> {new Date(selectedEmail.clickedAt).toLocaleString('pt-BR')}</p>
+                                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                                            <Eye className="h-5 w-5 text-purple-400" />
+                                            Preview do Conteúdo
+                                        </h3>
+                                        <div className="bg-white rounded-lg p-4 max-h-64 overflow-y-auto border border-neutral-600">
+                                            {selectedEmail.htmlContent ? (
+                                                <div
+                                                    dangerouslySetInnerHTML={{ __html: selectedEmail.htmlContent }}
+                                                    className="prose prose-sm max-w-none"
+                                                    style={{ fontSize: '12px', lineHeight: '1.4' }}
+                                                />
+                                            ) : (
+                                                <p className="text-gray-500 text-center text-sm">Nenhum conteúdo para visualizar</p>
                                             )}
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Error Message */}
-                                {selectedEmail.errorMessage && (
-                                    <div className="mb-6 p-4 bg-red-900/50 border border-red-700 rounded-lg">
-                                        <h4 className="font-medium text-red-300 mb-2">Mensagem de Erro</h4>
-                                        <p className="text-red-200 text-sm">{selectedEmail.errorMessage}</p>
+                                {/* Coluna direita - Timeline */}
+                                <div className="w-1/2 p-6 overflow-y-auto">
+                                    <div className="mb-6">
+                                        <EmailStatusTimeline email={selectedEmail} />
                                     </div>
-                                )}
 
-                                {/* Email Content */}
-                                <div>
-                                    <h4 className="font-medium text-white mb-3 flex items-center gap-2">
-                                        <Eye className="w-4 h-4" />
-                                        Conteúdo do Email
-                                    </h4>
-                                    <div className="bg-white rounded-lg p-4 max-h-96 overflow-y-auto">
-                                        {selectedEmail.htmlContent ? (
-                                            <div
-                                                dangerouslySetInnerHTML={{ __html: selectedEmail.htmlContent }}
-                                                className="prose max-w-none"
-                                            />
-                                        ) : (
-                                            <p className="text-gray-500 text-center">Nenhum conteúdo para visualizar</p>
-                                        )}
-                                    </div>
+                                    {/* Métricas de performance se o email foi bem-sucedido */}
+                                    {['delivered', 'opened', 'clicked'].includes(selectedEmail.status) && (
+                                        <div className="bg-neutral-800/50 rounded-lg p-4">
+                                            <h4 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                                                <TrendingUp className="h-4 w-4 text-green-400" />
+                                                Performance do Email
+                                            </h4>
+                                            <div className="space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-neutral-400 text-sm">Status de entrega:</span>
+                                                    <div className="flex items-center gap-1 text-green-400 text-sm">
+                                                        <Check className="h-3 w-3" />
+                                                        <span>Entregue com sucesso</span>
+                                                    </div>
+                                                </div>
+
+                                                {selectedEmail.opened && (
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-neutral-400 text-sm">Engajamento:</span>
+                                                        <div className="flex items-center gap-1 text-purple-400 text-sm">
+                                                            <Eye className="h-3 w-3" />
+                                                            <span>Email foi aberto</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {selectedEmail.clicked && (
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-neutral-400 text-sm">Interação:</span>
+                                                        <div className="flex items-center gap-1 text-indigo-400 text-sm">
+                                                            <ExternalLink className="h-3 w-3" />
+                                                            <span>Links foram clicados</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {selectedEmail.sentAt && selectedEmail.openedAt && (
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-neutral-400 text-sm">Tempo para abertura:</span>
+                                                        <span className="text-blue-400 text-sm">
+                                                            {Math.round((new Date(selectedEmail.openedAt).getTime() - new Date(selectedEmail.sentAt).getTime()) / (1000 * 60))} min
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
                             {/* Modal Footer */}
-                            <div className="p-6 border-t border-neutral-700 flex items-center justify-end">
+                            <div className="p-6 border-t border-neutral-700 flex items-center justify-between bg-neutral-800/30">
+                                <div className="text-sm text-neutral-400">
+                                    ID do rastreamento: {selectedEmail.trackingId || 'N/A'}
+                                </div>
                                 <button
                                     onClick={closeModal}
-                                    className="px-4 py-2 bg-white text-black rounded-lg hover:bg-neutral-200 transition-colors cursor-pointer"
+                                    className="px-6 py-2.5 bg-white text-black rounded-lg hover:bg-neutral-200 transition-colors cursor-pointer font-medium"
                                 >
                                     Fechar
                                 </button>

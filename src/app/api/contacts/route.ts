@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@/generated/prisma';
+import { requireAuth, unauthorizedResponse } from '@/lib/api-auth';
 
 const prisma = new PrismaClient();
 
 // GET - Listar contatos com filtros e paginação
 export async function GET(request: NextRequest) {
     try {
+        // Verificar autenticação
+        const { user, error } = requireAuth(request);
+        if (error || !user) {
+            return unauthorizedResponse(error);
+        }
+
         const { searchParams } = new URL(request.url);
 
         const page = parseInt(searchParams.get('page') || '1');
@@ -62,6 +69,12 @@ export async function GET(request: NextRequest) {
 // POST - Criar novo contato
 export async function POST(request: NextRequest) {
     try {
+        // Verificar autenticação
+        const { user, error } = requireAuth(request);
+        if (error || !user) {
+            return unauthorizedResponse(error);
+        }
+
         const body = await request.json();
 
         const {

@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@/generated/prisma';
+import { requireAuth, unauthorizedResponse } from '@/lib/api-auth';
 
 const prisma = new PrismaClient();
 
 export async function GET(request: NextRequest) {
     try {
+        // Verificar autenticação
+        const { user, error } = requireAuth(request);
+        if (error || !user) {
+            return unauthorizedResponse(error);
+        }
+
         const { searchParams } = new URL(request.url);
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '10');
@@ -78,6 +85,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
+        // Verificar autenticação
+        const { user, error } = requireAuth(request);
+        if (error || !user) {
+            return unauthorizedResponse(error);
+        }
+
         const body = await request.json();
         const { name, description, subject, htmlContent, category, isActive } = body;
 
