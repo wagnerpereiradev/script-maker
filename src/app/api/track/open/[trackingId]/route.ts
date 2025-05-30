@@ -3,9 +3,6 @@ import { EmailStatus } from '@/generated/prisma';
 import { prisma } from '@/lib/prisma';
 import { isValidEmailClient, isValidReferrer, getNextStatus, validateTrackingToken, getOptimizedTrackingPixel } from '@/lib/email-tracking';
 
-// Cache para IPs já processados (evitar múltiplos opens do mesmo IP)
-const processedIPs = new Map<string, Set<string>>();
-
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ trackingId: string }> }
@@ -15,53 +12,32 @@ export async function GET(
         const { searchParams } = new URL(request.url);
         const token = searchParams.get('t');
 
-        if (!trackingId) {
-            return getOptimizedTrackingPixelResponse(trackingId);
-        }
-
-        // Validar token HMAC
-        if (!token || !validateTrackingToken(trackingId, token)) {
-            console.log('Open tracking blocked - invalid token:', {
-                trackingId,
-                token,
-                timestamp: new Date().toISOString()
-            });
-            return getOptimizedTrackingPixelResponse(trackingId);
-        }
-
-        // Obter informações do request para validação
+        // Obter informações do request
         const userAgent = request.headers.get('user-agent');
         const referrer = request.headers.get('referer') || request.headers.get('referrer');
         const forwardedFor = request.headers.get('x-forwarded-for');
         const realIp = request.headers.get('x-real-ip');
         const clientIp = forwardedFor?.split(',')[0] || realIp || 'unknown';
 
-        // Log para debugging (remover em produção se necessário)
-        console.log('Open tracking attempt:', {
-            trackingId,
-            userAgent,
-            referrer,
-            ip: clientIp,
-            timestamp: new Date().toISOString()
-        });
+        // Log SEMPRE para debugging
+        console.log('=== TRACKING ATTEMPT ===');
+        console.log('TrackingId:', trackingId);
+        console.log('Token:', token);
+        console.log('UserAgent:', userAgent);
+        console.log('Referrer:', referrer);
+        console.log('ClientIP:', clientIp);
+        console.log('Timestamp:', new Date().toISOString());
 
-        // Verificar se já processamos este IP para este trackingId (anti-duplicação)
-        if (!processedIPs.has(trackingId)) {
-            processedIPs.set(trackingId, new Set());
-        }
-
-        const trackingSet = processedIPs.get(trackingId)!;
-        if (trackingSet.has(clientIp)) {
-            console.log('Open tracking skipped - IP already processed:', {
-                trackingId,
-                ip: clientIp
-            });
+        if (!trackingId) {
+            console.log('❌ No tracking ID provided');
             return getOptimizedTrackingPixelResponse(trackingId);
         }
 
-        // Validações de segurança melhoradas
-        const isValidClient = isValidEmailClient(userAgent);
-        const isValidRef = isValidReferrer(referrer);
+        // Validar token HMAC (mais tolerante)
+        if (!token || !validateTrackingToken(trackingId, token)) {
+            console.log('⚠️  Invalid token, but continuing with tracking');
+            // Continuar mesmo com token inválido para debug
+        }
 
         // Buscar email pelo trackingId
         const email = await prisma.emailSent.findFirst({
@@ -69,58 +45,56 @@ export async function GET(
         });
 
         if (!email) {
-            // Ainda retornar pixel mesmo se email não encontrado
+            console.log('❌ Email not found in database');
             return getOptimizedTrackingPixelResponse(trackingId);
         }
 
-        // Só atualizar se passar nas validações e ainda não foi marcado como aberto
-        if (isValidClient && isValidRef && !email.opened) {
+        console.log('📧 Email found:', {
+            id: email.id,
+            toEmail: email.toEmail,
+            status: email.status,
+            opened: email.opened,
+            openedAt: email.openedAt
+        });
+
+        // Validações simplificadas
+        const isValidClient = isValidEmailClient(userAgent);
+        const isValidRef = isValidReferrer();
+
+        console.log('🔍 Validations:', {
+            isValidClient,
+            isValidRef,
+            alreadyOpened: email.opened
+        });
+
+        // Atualizar SEMPRE se ainda não foi marcado como aberto (para debug)
+        if (!email.opened) {
             const nextStatus = getNextStatus(email.status, 'open') as EmailStatus;
 
-            // Só atualizar se o status deve mudar
-            if (nextStatus !== email.status || !email.opened) {
-                await prisma.emailSent.update({
-                    where: { id: email.id },
-                    data: {
-                        opened: true,
-                        openedAt: new Date(),
-                        status: nextStatus,
-                    },
-                });
-
-                // Adicionar IP ao conjunto de processados
-                trackingSet.add(clientIp);
-
-                console.log('Email marked as opened:', {
-                    emailId: email.id,
-                    toEmail: email.toEmail,
-                    previousStatus: email.status,
-                    newStatus: nextStatus,
-                    userAgent,
-                    ip: clientIp,
-                    timestamp: new Date().toISOString()
-                });
-            }
-        } else if (!isValidClient || !isValidRef) {
-            console.log('Open tracking blocked - invalid client or referrer:', {
-                trackingId,
-                isValidClient,
-                isValidRef,
-                userAgent,
-                referrer,
-                ip: clientIp
+            console.log('🔄 Updating email status:', {
+                from: email.status,
+                to: nextStatus
             });
-        } else if (email.opened) {
-            console.log('Open tracking skipped - already marked as opened:', {
-                trackingId,
-                openedAt: email.openedAt
+
+            await prisma.emailSent.update({
+                where: { id: email.id },
+                data: {
+                    opened: true,
+                    openedAt: new Date(),
+                    status: nextStatus,
+                },
             });
+
+            console.log('✅ Email marked as opened successfully');
+        } else {
+            console.log('ℹ️  Email already marked as opened at:', email.openedAt);
         }
 
+        console.log('=== END TRACKING ===\n');
         return getOptimizedTrackingPixelResponse(trackingId);
 
     } catch (error) {
-        console.error('Erro no tracking de abertura:', error);
+        console.error('❌ ERROR in tracking:', error);
         // Sempre retornar pixel mesmo em caso de erro
         const { trackingId } = await params;
         return getOptimizedTrackingPixelResponse(trackingId);
@@ -143,7 +117,7 @@ function getOptimizedTrackingPixelResponse(trackingId?: string): NextResponse {
             'Expires': '0',
             'X-Robots-Tag': 'noindex, nofollow',
             'Access-Control-Allow-Origin': '*',
-            'Vary': 'User-Agent', // Diferenciar por cliente
+            'Vary': 'User-Agent',
         },
     });
 
@@ -153,13 +127,4 @@ function getOptimizedTrackingPixelResponse(trackingId?: string): NextResponse {
     }
 
     return response;
-}
-
-// Limpeza periódica do cache de IPs (executar a cada hora)
-setInterval(() => {
-    // Limpar entradas antigas (simplificado - em produção usar Redis ou similar)
-    if (processedIPs.size > 1000) {
-        processedIPs.clear();
-        console.log('Cleaned up processed IPs cache');
-    }
-}, 60 * 60 * 1000); // 1 hora 
+} 

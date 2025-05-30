@@ -52,7 +52,7 @@ export async function GET(
 
         // Validações de segurança melhoradas
         const isValidClient = isValidEmailClient(userAgent);
-        const isValidRef = isValidReferrer(referrer);
+        const isValidRef = isValidReferrer();
 
         // Buscar email pelo trackingId
         const email = await prisma.emailSent.findFirst({
