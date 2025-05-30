@@ -53,6 +53,11 @@ interface SendEmailRequest {
     textContent?: string;
 }
 
+// Função para delay entre envios
+function delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // Função para personalizar conteúdo com dados do contato
 function personalizeContent(content: string, contact: Contact, smtpConfig?: SMTPConfigExpanded): string {
     if (!content || typeof content !== 'string') {
@@ -91,6 +96,219 @@ function personalizeContent(content: string, contact: Contact, smtpConfig?: SMTP
     result = result.replace(/{{dayOfWeek}}/g, new Date().toLocaleDateString('pt-BR', { weekday: 'long' }));
 
     return result;
+}
+
+// Função para processar um único email
+async function processEmail(
+    contact: Contact,
+    subject: string,
+    htmlContent: string,
+    textContent: string,
+    scriptId: string | undefined,
+    templateId: string | undefined,
+    expandedConfig: SMTPConfigExpanded,
+    transporter: nodemailer.Transporter,
+    baseUrl: string
+): Promise<{ success: boolean; result?: { contactId: string; contactName: string; contactEmail: string; messageId: string; trackingId: string; status: string }; error?: string }> {
+    try {
+        // Gerar ID de tracking único para cada email
+        const trackingId = randomBytes(16).toString('hex');
+
+        // Personalizar conteúdo para este contato específico
+        const personalizedSubject = personalizeContent(subject, contact, expandedConfig);
+        const personalizedHtmlContent = personalizeContent(htmlContent, contact, expandedConfig);
+        const personalizedTextContent = textContent ? personalizeContent(textContent, contact, expandedConfig) : '';
+
+        // Adicionar tracking ao HTML personalizado
+        const htmlContentWithTracking = addEmailTracking(personalizedHtmlContent, trackingId, baseUrl);
+
+        // Criar registro de email na base de dados
+        const emailRecord = await prisma.emailSent.create({
+            data: {
+                contactId: contact.id,
+                scriptId,
+                templateId,
+                toEmail: contact.email,
+                toName: contact.name,
+                subject: personalizedSubject,
+                htmlContent: htmlContentWithTracking,
+                textContent: personalizedTextContent,
+                fromEmail: expandedConfig.fromEmail || expandedConfig.username || '',
+                fromName: expandedConfig.fromName || expandedConfig.username || '',
+                smtpHost: expandedConfig.host || '',
+                smtpPort: expandedConfig.port || 587,
+                status: 'pending',
+                trackingId,
+                opened: false,
+                clicked: false,
+                bounced: false,
+            },
+        });
+
+        // Configurar opções do email com conteúdo personalizado
+        const mailOptions = {
+            from: `"${expandedConfig.fromName}" <${expandedConfig.fromEmail}>`,
+            to: `"${contact.name}" <${contact.email}>`,
+            subject: personalizedSubject,
+            html: htmlContentWithTracking,
+            text: personalizedTextContent,
+        };
+
+        // Atualizar status para enviando
+        await prisma.emailSent.update({
+            where: { id: emailRecord.id },
+            data: { status: 'sending' },
+        });
+
+        // Enviar email
+        const result = await transporter.sendMail(mailOptions);
+
+        // Atualizar status para enviado
+        await prisma.emailSent.update({
+            where: { id: emailRecord.id },
+            data: {
+                status: 'sent',
+                sentAt: new Date(),
+            },
+        });
+
+        // Simular status de "delivered" após alguns segundos (em produção, isso viria do provedor SMTP)
+        // Para Gmail, Outlook, etc., podemos considerar como delivered imediatamente após sent
+        setTimeout(async () => {
+            try {
+                await prisma.emailSent.update({
+                    where: { id: emailRecord.id },
+                    data: {
+                        status: 'delivered',
+                        deliveredAt: new Date(),
+                    },
+                });
+            } catch (error) {
+                console.error('Erro ao atualizar status para delivered:', error);
+            }
+        }, 2000); // 2 segundos de delay para simular entrega
+
+        return {
+            success: true,
+            result: {
+                contactId: contact.id,
+                contactName: contact.name,
+                contactEmail: contact.email,
+                messageId: result.messageId,
+                trackingId: trackingId,
+                status: 'sent'
+            }
+        };
+
+    } catch (emailError: unknown) {
+        console.error(`Erro ao enviar email para ${contact.email}:`, emailError);
+
+        // Determinar tipo de erro e status apropriado
+        let errorStatus = 'failed';
+        let errorMessage = 'Erro desconhecido';
+
+        if (emailError instanceof Error) {
+            errorMessage = emailError.message;
+            if (errorMessage.includes('bounce') || errorMessage.includes('rejected')) {
+                errorStatus = 'bounced';
+            }
+        }
+
+        // Tentar atualizar o status do email no banco se foi criado
+        try {
+            await prisma.emailSent.updateMany({
+                where: {
+                    contactId: contact.id,
+                    toEmail: contact.email,
+                    status: { in: ['pending', 'sending'] }
+                },
+                data: {
+                    status: errorStatus as 'failed' | 'bounced',
+                    errorMessage: errorMessage,
+                },
+            });
+        } catch (updateError) {
+            console.error('Erro ao atualizar status de falha:', updateError);
+        }
+
+        return {
+            success: false,
+            error: errorMessage
+        };
+    }
+}
+
+// Função para processar emails em lotes
+async function processEmailBatch(
+    contacts: Contact[],
+    subject: string,
+    htmlContent: string,
+    textContent: string,
+    scriptId: string | undefined,
+    templateId: string | undefined,
+    expandedConfig: SMTPConfigExpanded,
+    transporter: nodemailer.Transporter,
+    baseUrl: string,
+    batchSize: number = 5,
+    delayBetweenEmails: number = 1000,
+    delayBetweenBatches: number = 3000
+): Promise<{
+    results: Array<{ contactId: string; contactName: string; contactEmail: string; messageId: string; trackingId: string; status: string }>;
+    errors: Array<{ contactId: string; contactName: string; contactEmail: string; error: string; status: string }>
+}> {
+    const results: Array<{ contactId: string; contactName: string; contactEmail: string; messageId: string; trackingId: string; status: string }> = [];
+    const errors: Array<{ contactId: string; contactName: string; contactEmail: string; error: string; status: string }> = [];
+
+    // Dividir contatos em lotes
+    for (let i = 0; i < contacts.length; i += batchSize) {
+        const batch = contacts.slice(i, i + batchSize);
+        console.log(`Processando lote ${Math.floor(i / batchSize) + 1} de ${Math.ceil(contacts.length / batchSize)}: ${batch.length} emails`);
+
+        // Processar emails do lote em paralelo limitado
+        const batchPromises = batch.map(async (contact, index) => {
+            // Delay progressivo dentro do lote para evitar sobrecarga
+            if (index > 0) {
+                await delay(delayBetweenEmails);
+            }
+
+            const result = await processEmail(
+                contact,
+                subject,
+                htmlContent,
+                textContent,
+                scriptId,
+                templateId,
+                expandedConfig,
+                transporter,
+                baseUrl
+            );
+
+            if (result.success) {
+                if (result.result) {
+                    results.push(result.result);
+                }
+            } else {
+                errors.push({
+                    contactId: contact.id,
+                    contactName: contact.name,
+                    contactEmail: contact.email,
+                    error: result.error || 'Erro desconhecido',
+                    status: 'failed'
+                });
+            }
+        });
+
+        // Aguardar conclusão do lote
+        await Promise.all(batchPromises);
+
+        // Delay entre lotes (exceto no último)
+        if (i + batchSize < contacts.length) {
+            console.log(`Aguardando ${delayBetweenBatches}ms antes do próximo lote...`);
+            await delay(delayBetweenBatches);
+        }
+    }
+
+    return { results, errors };
 }
 
 export async function POST(request: NextRequest) {
@@ -209,11 +427,14 @@ export async function POST(request: NextRequest) {
             yourLocation: personalSettings?.yourLocation || '',
         };
 
-        // Configurar transporter
+        // Configurar transporter com pool de conexões para melhor performance
         const transporter = nodemailer.createTransport({
             host: expandedConfig.host,
             port: expandedConfig.port,
             secure: expandedConfig.secure,
+            pool: true, // Usar pool de conexões
+            maxConnections: 3, // Máximo 3 conexões simultâneas
+            maxMessages: 10, // Máximo 10 mensagens por conexão
             auth: {
                 user: expandedConfig.username,
                 pass: smtpPassword,
@@ -231,120 +452,57 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Processar envios para cada contato
-        const results = [];
-        const errors = [];
+        const baseUrl = getBaseUrl(request);
+        const totalCount = contactsToSend.length;
 
-        for (const contact of contactsToSend) {
-            try {
-                // Gerar ID de tracking único para cada email
-                const trackingId = randomBytes(16).toString('hex');
+        console.log(`Iniciando envio para ${totalCount} contatos...`);
 
-                // Obter URL base para tracking
-                const baseUrl = getBaseUrl(request);
+        // Determinar configurações de lote baseado no número de contatos
+        let batchSize = 5;
+        let delayBetweenEmails = 1000; // 1 segundo
+        let delayBetweenBatches = 3000; // 3 segundos
 
-                // Personalizar conteúdo para este contato específico
-                const personalizedSubject = personalizeContent(subject, contact, expandedConfig);
-                const personalizedHtmlContent = personalizeContent(htmlContent, contact, expandedConfig);
-                const personalizedTextContent = textContent ? personalizeContent(textContent, contact, expandedConfig) : '';
-
-                // Adicionar tracking ao HTML personalizado
-                const htmlContentWithTracking = addEmailTracking(personalizedHtmlContent, trackingId, baseUrl);
-
-                // Criar registro de email na base de dados
-                const emailRecord = await prisma.emailSent.create({
-                    data: {
-                        contactId: contact.id,
-                        scriptId,
-                        templateId,
-                        toEmail: contact.email,
-                        toName: contact.name,
-                        subject: personalizedSubject,
-                        htmlContent: htmlContentWithTracking,
-                        textContent: personalizedTextContent,
-                        fromEmail: expandedConfig.fromEmail || expandedConfig.username || '',
-                        fromName: expandedConfig.fromName || expandedConfig.username || '',
-                        smtpHost: expandedConfig.host || '',
-                        smtpPort: expandedConfig.port || 587,
-                        status: 'pending',
-                        trackingId,
-                        opened: false,
-                        clicked: false,
-                        bounced: false,
-                    },
-                });
-
-                // Configurar opções do email com conteúdo personalizado
-                const mailOptions = {
-                    from: `"${expandedConfig.fromName}" <${expandedConfig.fromEmail}>`,
-                    to: `"${contact.name}" <${contact.email}>`,
-                    subject: personalizedSubject,
-                    html: htmlContentWithTracking,
-                    text: personalizedTextContent,
-                };
-
-                // Atualizar status para enviando
-                await prisma.emailSent.update({
-                    where: { id: emailRecord.id },
-                    data: { status: 'sending' },
-                });
-
-                // Enviar email
-                const result = await transporter.sendMail(mailOptions);
-
-                // Atualizar status para enviado
-                await prisma.emailSent.update({
-                    where: { id: emailRecord.id },
-                    data: {
-                        status: 'sent',
-                        sentAt: new Date(),
-                    },
-                });
-
-                results.push({
-                    contactId: contact.id,
-                    contactName: contact.name,
-                    contactEmail: contact.email,
-                    messageId: result.messageId,
-                    trackingId: trackingId,
-                    status: 'sent'
-                });
-
-            } catch (emailError: unknown) {
-                console.error(`Erro ao enviar email para ${contact.email}:`, emailError);
-
-                // Determinar tipo de erro e status apropriado
-                let errorStatus = 'failed';
-                let errorMessage = 'Erro desconhecido';
-
-                if (emailError instanceof Error) {
-                    errorMessage = emailError.message;
-                    if (errorMessage.includes('bounce') || errorMessage.includes('rejected')) {
-                        errorStatus = 'bounced';
-                    }
-                }
-
-                errors.push({
-                    contactId: contact.id,
-                    contactName: contact.name,
-                    contactEmail: contact.email,
-                    error: errorMessage,
-                    status: errorStatus
-                });
-            }
+        if (totalCount > 50) {
+            batchSize = 3;
+            delayBetweenEmails = 2000; // 2 segundos
+            delayBetweenBatches = 5000; // 5 segundos
+        } else if (totalCount > 20) {
+            batchSize = 4;
+            delayBetweenEmails = 1500; // 1.5 segundos
+            delayBetweenBatches = 4000; // 4 segundos
         }
 
-        const baseUrl = getBaseUrl(request);
+        // Processar emails em lotes
+        const { results, errors } = await processEmailBatch(
+            contactsToSend,
+            subject,
+            htmlContent,
+            textContent || '',
+            scriptId,
+            templateId,
+            expandedConfig,
+            transporter,
+            baseUrl,
+            batchSize,
+            delayBetweenEmails,
+            delayBetweenBatches
+        );
+
+        // Fechar transporter
+        transporter.close();
+
         const successCount = results.length;
         const errorCount = errors.length;
-        const totalCount = contactsToSend.length;
+
+        console.log(`Envio concluído: ${successCount} enviados, ${errorCount} falharam de ${totalCount} total`);
 
         return NextResponse.json({
             message: `Processamento concluído: ${successCount} enviados, ${errorCount} falharam de ${totalCount} total`,
             summary: {
                 total: totalCount,
                 sent: successCount,
-                failed: errorCount
+                failed: errorCount,
+                successRate: totalCount > 0 ? Math.round((successCount / totalCount) * 100) : 0
             },
             results,
             errors,

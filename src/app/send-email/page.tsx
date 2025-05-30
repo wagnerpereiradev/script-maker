@@ -102,6 +102,15 @@ export default function SendEmail() {
 
     // UI states
     const [sending, setSending] = useState(false);
+    const [sendingProgress, setSendingProgress] = useState({
+        total: 0,
+        sent: 0,
+        failed: 0,
+        currentBatch: 0,
+        totalBatches: 0,
+        currentEmail: '',
+        isComplete: false
+    });
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [previewContact, setPreviewContact] = useState<Contact | null>(null);
 
@@ -258,6 +267,19 @@ export default function SendEmail() {
         }
 
         setSending(true);
+
+        // Inicializar progresso
+        const totalEmails = sendType === 'list' ? (selectedMailingList?._count?.contacts || 0) : 1;
+        setSendingProgress({
+            total: totalEmails,
+            sent: 0,
+            failed: 0,
+            currentBatch: 1,
+            totalBatches: Math.ceil(totalEmails / (totalEmails > 50 ? 3 : totalEmails > 20 ? 4 : 5)),
+            currentEmail: sendType === 'individual' ? selectedContact?.email || '' : 'Preparando envio...',
+            isComplete: false
+        });
+
         try {
             const requestBody: {
                 scriptId: string | null;
@@ -284,8 +306,16 @@ export default function SendEmail() {
                 requestBody.contactId = selectedContact.id;
                 requestBody.toEmail = selectedContact.email;
                 requestBody.toName = selectedContact.name;
+                setSendingProgress(prev => ({
+                    ...prev,
+                    currentEmail: `Enviando para ${selectedContact.name} (${selectedContact.email})`
+                }));
             } else if (sendType === 'list' && selectedMailingList) {
                 requestBody.mailingListId = selectedMailingList.id;
+                setSendingProgress(prev => ({
+                    ...prev,
+                    currentEmail: `Iniciando envio para lista "${selectedMailingList.name}"`
+                }));
             }
 
             const response = await fetch('/api/send-email', {
@@ -297,27 +327,63 @@ export default function SendEmail() {
             if (response.ok) {
                 const result = await response.json();
 
+                // Atualizar progresso final
+                setSendingProgress(prev => ({
+                    ...prev,
+                    sent: result.summary.sent,
+                    failed: result.summary.failed,
+                    currentEmail: 'Envio concluído!',
+                    isComplete: true
+                }));
+
                 if (sendType === 'list') {
                     setMessage({
                         type: 'success',
-                        text: `Envio concluído! ${result.summary.sent} emails enviados com sucesso de ${result.summary.total} total.`
+                        text: `Envio concluído! ${result.summary.sent} emails enviados com sucesso de ${result.summary.total} total. Taxa de sucesso: ${result.summary.successRate}%.`
                     });
                 } else {
                     setMessage({ type: 'success', text: 'Email enviado com sucesso!' });
                 }
 
-                // Reset form
-                setStep(1);
-                setSelectedContact(null);
-                setSelectedMailingList(null);
-                setSelectedScript(null);
-                setSelectedTemplate(null);
-                setSendType('individual');
+                // Aguardar um pouco para mostrar o resultado final antes de resetar
+                setTimeout(() => {
+                    // Reset form apenas se não houver erros graves
+                    if (result.summary.sent > 0) {
+                        setStep(1);
+                        setSelectedContact(null);
+                        setSelectedMailingList(null);
+                        setSelectedScript(null);
+                        setSelectedTemplate(null);
+                        setSendType('individual');
+                        setSendingProgress({
+                            total: 0,
+                            sent: 0,
+                            failed: 0,
+                            currentBatch: 0,
+                            totalBatches: 0,
+                            currentEmail: '',
+                            isComplete: false
+                        });
+                    }
+                }, 3000);
             } else {
                 const error = await response.json();
+                setSendingProgress(prev => ({
+                    ...prev,
+                    failed: prev.total,
+                    currentEmail: 'Erro no envio',
+                    isComplete: true
+                }));
                 setMessage({ type: 'error', text: error.error || 'Erro ao enviar email' });
             }
-        } catch {
+        } catch (err) {
+            console.error('Erro ao enviar email:', err);
+            setSendingProgress(prev => ({
+                ...prev,
+                failed: prev.total,
+                currentEmail: 'Erro de conexão',
+                isComplete: true
+            }));
             setMessage({ type: 'error', text: 'Erro ao conectar com o servidor' });
         } finally {
             setSending(false);
@@ -1049,17 +1115,110 @@ export default function SendEmail() {
                                 <div className="flex justify-between items-center flex-shrink-0 mt-6 pt-6 border-t border-neutral-700">
                                     <button
                                         onClick={() => setStep(3)}
-                                        className="flex items-center gap-2 px-6 py-2 bg-neutral-700 text-white rounded-lg hover:bg-neutral-600 transition-colors"
+                                        disabled={sending}
+                                        className="flex items-center gap-2 px-6 py-2 bg-neutral-700 text-white rounded-lg hover:bg-neutral-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <ArrowLeft className="w-4 h-4" />
                                         Voltar aos Scripts
                                     </button>
 
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex items-center gap-2 text-sm text-neutral-400">
-                                            <Check className="w-4 h-4 text-green-400" />
-                                            Email pronto para envio
+                                    {/* Componente de Progresso de Envio - Redesenhado */}
+                                    {sending && (
+                                        <div className="flex-1 mx-6">
+                                            <div className="bg-gradient-to-br from-neutral-800 to-neutral-900 rounded-xl p-5 border border-neutral-700/50 shadow-xl backdrop-blur-sm">
+                                                {/* Header compacto */}
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="relative">
+                                                            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                                                                <Send className="w-4 h-4 text-white" />
+                                                            </div>
+                                                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full flex items-center justify-center">
+                                                                <Loader2 className="w-2 h-2 animate-spin text-neutral-900" />
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="text-white font-semibold text-sm">Enviando Emails</h3>
+                                                            <p className="text-neutral-400 text-xs">
+                                                                {sendingProgress.sent + sendingProgress.failed} de {sendingProgress.total} emails
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="text-2xl font-bold text-white">
+                                                            {sendingProgress.total > 0
+                                                                ? Math.round(((sendingProgress.sent + sendingProgress.failed) / sendingProgress.total) * 100)
+                                                                : 0
+                                                            }%
+                                                        </div>
+                                                        {sendingProgress.totalBatches > 1 && (
+                                                            <div className="text-xs text-neutral-400">
+                                                                Lote {sendingProgress.currentBatch}/{sendingProgress.totalBatches}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Barra de Progresso Elegante */}
+                                                <div className="mb-4">
+                                                    <div className="w-full bg-neutral-700 rounded-full h-3 overflow-hidden shadow-inner">
+                                                        <div className="flex h-full">
+                                                            {/* Enviados com sucesso */}
+                                                            <div
+                                                                className="bg-gradient-to-r from-green-500 to-green-600 transition-all duration-500 ease-out shadow-sm"
+                                                                style={{
+                                                                    width: `${sendingProgress.total > 0 ? (sendingProgress.sent / sendingProgress.total) * 100 : 0}%`
+                                                                }}
+                                                            />
+                                                            {/* Falharam */}
+                                                            {sendingProgress.failed > 0 && (
+                                                                <div
+                                                                    className="bg-gradient-to-r from-red-500 to-red-600 transition-all duration-500 ease-out"
+                                                                    style={{
+                                                                        width: `${sendingProgress.total > 0 ? (sendingProgress.failed / sendingProgress.total) * 100 : 0}%`
+                                                                    }}
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Status e Estatísticas - Layout horizontal compacto */}
+                                                <div className="flex items-center justify-between">
+                                                    {/* Status atual */}
+                                                    <div className="flex-1 min-w-0 mr-4">
+                                                        <p className="text-neutral-300 text-xs truncate font-medium">
+                                                            {sendingProgress.currentEmail}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Estatísticas compactas */}
+                                                    <div className="flex items-center gap-4 text-xs">
+                                                        {sendingProgress.sent > 0 && (
+                                                            <div className="flex items-center gap-1.5 px-2 py-1 bg-green-900/30 rounded-full border border-green-700/30">
+                                                                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                                                <span className="text-green-300 font-medium">{sendingProgress.sent}</span>
+                                                            </div>
+                                                        )}
+                                                        {sendingProgress.failed > 0 && (
+                                                            <div className="flex items-center gap-1.5 px-2 py-1 bg-red-900/30 rounded-full border border-red-700/30">
+                                                                <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                                                                <span className="text-red-300 font-medium">{sendingProgress.failed}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
+                                    )}
+
+                                    <div className="flex items-center gap-4">
+                                        {!sending && (
+                                            <div className="flex items-center gap-2 text-sm text-neutral-400">
+                                                <Check className="w-4 h-4 text-green-400" />
+                                                Email pronto para envio
+                                            </div>
+                                        )}
 
                                         <button
                                             onClick={sendEmail}
@@ -1069,7 +1228,7 @@ export default function SendEmail() {
                                             {sending ? (
                                                 <>
                                                     <Loader2 className="w-5 h-5 animate-spin" />
-                                                    Enviando...
+                                                    {sendingProgress.isComplete ? 'Concluído' : 'Enviando...'}
                                                 </>
                                             ) : (
                                                 <>

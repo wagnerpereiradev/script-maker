@@ -2,7 +2,113 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import MainLayout from '@/components/MainLayout';
-import { Search, Filter, Mail, Calendar, User, Building, Eye, X, Check, Clock, AlertCircle, Send, ExternalLink, TrendingUp, Activity, ChevronRight } from 'lucide-react';
+import EmailTemplatePreview from '@/components/EmailTemplatePreview';
+import { Search, Filter, Mail, Calendar, User, Building, Eye, X, Check, Clock, AlertCircle, Send, ExternalLink, TrendingUp, Activity, ChevronRight, RefreshCw, FileText, Play, Pause, Copy, Code, Server, Link } from 'lucide-react';
+
+// CSS customizado para transições suaves
+const smoothTransitionStyles = `
+  .smooth-refresh-transition {
+    transition: opacity 0.3s ease-in-out, transform 0.2s ease-in-out;
+  }
+  
+  .refresh-shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  
+  .stagger-fade-in {
+    animation: staggerFadeIn 0.4s ease-out forwards;
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  
+  @keyframes staggerFadeIn {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .auto-refresh-pulse {
+    animation: autoRefreshPulse 2s ease-in-out infinite;
+  }
+  
+  @keyframes autoRefreshPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  .flip-number {
+    display: inline-block;
+    transition: transform 0.6s ease-in-out;
+    transform-style: preserve-3d;
+  }
+
+  .flip-number.flipping {
+    animation: flipDigit 0.6s ease-in-out;
+  }
+
+  @keyframes flipDigit {
+    0% { transform: rotateX(0deg); }
+    50% { transform: rotateX(90deg); }
+    100% { transform: rotateX(0deg); }
+  }
+
+  .number-container {
+    perspective: 100px;
+    display: inline-block;
+  }
+`;
+
+// Componente para horário com animação
+const AnimatedTime = ({ time }: { time: Date | null }) => {
+    const [prevTime, setPrevTime] = useState<string>('');
+    const [flippingDigits, setFlippingDigits] = useState<Set<number>>(new Set());
+
+    const timeStr = time ? time.toLocaleTimeString('pt-BR') : '--:--:--';
+
+    useEffect(() => {
+        if (time && prevTime && prevTime !== timeStr) {
+            const newFlipping = new Set<number>();
+            for (let i = 0; i < Math.min(prevTime.length, timeStr.length); i++) {
+                if (prevTime[i] !== timeStr[i] && /\d/.test(timeStr[i])) {
+                    newFlipping.add(i);
+                }
+            }
+            setFlippingDigits(newFlipping);
+
+            setTimeout(() => {
+                setFlippingDigits(new Set());
+            }, 600);
+        }
+        if (time) {
+            setPrevTime(timeStr);
+        }
+    }, [timeStr, prevTime, time]);
+
+    if (!time) {
+        return <span className="text-neutral-400">--:--:--</span>;
+    }
+
+    return (
+        <span className="font-mono text-xs">
+            {timeStr.split('').map((char, index) => (
+                <span
+                    key={index}
+                    className={`number-container ${flippingDigits.has(index) ? 'flip-number flipping' : 'flip-number'}`}
+                >
+                    {char}
+                </span>
+            ))}
+        </span>
+    );
+};
 
 interface SentEmail {
     id: string;
@@ -47,47 +153,60 @@ const EmailStatusTimeline = ({ email }: { email: SentEmail }) => {
         {
             id: 'pending',
             label: 'Criado',
-            description: 'Email foi criado',
+            description: 'Email foi criado e adicionado à fila',
             icon: Clock,
             timestamp: email.createdAt,
-            completed: true
+            completed: true,
+            duration: null
         },
         {
             id: 'sent',
             label: 'Enviado',
-            description: 'Email foi enviado pelo servidor',
+            description: 'Email foi processado e enviado pelo servidor SMTP',
             icon: Send,
             timestamp: email.sentAt,
-            completed: ['sent', 'delivered', 'opened', 'clicked'].includes(email.status)
+            completed: ['sent', 'delivered', 'opened', 'clicked'].includes(email.status),
+            duration: email.sentAt && email.createdAt ?
+                Math.round((new Date(email.sentAt).getTime() - new Date(email.createdAt).getTime()) / 1000) : null
         },
         {
             id: 'delivered',
             label: 'Entregue',
-            description: 'Email chegou na caixa de entrada',
+            description: 'Email chegou na caixa de entrada do destinatário',
             icon: Check,
             timestamp: email.deliveredAt,
-            completed: ['delivered', 'opened', 'clicked'].includes(email.status)
+            completed: ['delivered', 'opened', 'clicked'].includes(email.status),
+            duration: email.deliveredAt && email.sentAt ?
+                Math.round((new Date(email.deliveredAt).getTime() - new Date(email.sentAt).getTime()) / 1000) : null
         },
         {
             id: 'opened',
             label: 'Aberto',
-            description: 'Destinatário abriu o email',
+            description: 'Destinatário visualizou o email',
             icon: Eye,
             timestamp: email.openedAt,
-            completed: email.opened || ['opened', 'clicked'].includes(email.status)
+            completed: email.opened || ['opened', 'clicked'].includes(email.status),
+            duration: email.openedAt && email.deliveredAt ?
+                Math.round((new Date(email.openedAt).getTime() - new Date(email.deliveredAt).getTime()) / 60000) : null
         },
         {
             id: 'clicked',
             label: 'Clicado',
-            description: 'Destinatário clicou em um link',
+            description: 'Destinatário interagiu com links no email',
             icon: ExternalLink,
             timestamp: email.clickedAt,
-            completed: email.clicked || email.status === 'clicked'
+            completed: email.clicked || email.status === 'clicked',
+            duration: email.clickedAt && email.openedAt ?
+                Math.round((new Date(email.clickedAt).getTime() - new Date(email.openedAt).getTime()) / 60000) : null
         }
     ];
 
     const isError = ['failed', 'bounced'].includes(email.status);
     const currentStep = email.status;
+
+    // Calcular tempo total de delivery
+    const totalDeliveryTime = email.sentAt && email.createdAt ?
+        Math.round((new Date(email.sentAt).getTime() - new Date(email.createdAt).getTime()) / 1000) : null;
 
     return (
         <div className="bg-neutral-800/50 rounded-lg p-4">
@@ -96,12 +215,18 @@ const EmailStatusTimeline = ({ email }: { email: SentEmail }) => {
                     <Activity className="h-4 w-4 text-blue-400" />
                     Linha do Tempo do Email
                 </h4>
-                {isError && (
-                    <div className="flex items-center gap-1 px-2 py-1 bg-red-900/50 text-red-300 rounded text-xs border border-red-700">
-                        <AlertCircle className="h-3 w-3" />
-                        {email.status === 'failed' ? 'Falhou' : 'Rejeitado'}
-                    </div>
-                )}
+                <div className="flex items-center gap-2">
+                    {isError ? (
+                        <div className="flex items-center gap-1 px-2 py-1 bg-red-900/50 text-red-300 rounded text-xs border border-red-700">
+                            <AlertCircle className="h-3 w-3" />
+                            {email.status === 'failed' ? 'Falhou' : 'Rejeitado'}
+                        </div>
+                    ) : totalDeliveryTime && (
+                        <div className="text-xs text-neutral-400 bg-neutral-700/50 px-2 py-1 rounded">
+                            Tempo de envio: {totalDeliveryTime}s
+                        </div>
+                    )}
+                </div>
             </div>
 
             <div className="space-y-3">
@@ -147,16 +272,27 @@ const EmailStatusTimeline = ({ email }: { email: SentEmail }) => {
                                             </span>
                                         )}
                                     </div>
-                                    {step.timestamp && (
-                                        <div className="text-xs text-neutral-500">
-                                            {new Date(step.timestamp).toLocaleString('pt-BR', {
-                                                day: '2-digit',
-                                                month: '2-digit',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            })}
-                                        </div>
-                                    )}
+                                    <div className="flex items-center gap-2">
+                                        {step.duration !== null && (
+                                            <div className="text-xs text-neutral-400 bg-neutral-700/30 px-2 py-0.5 rounded">
+                                                {step.id === 'delivered' ?
+                                                    `${step.duration}s` :
+                                                    `${step.duration}min`
+                                                }
+                                            </div>
+                                        )}
+                                        {step.timestamp && (
+                                            <div className="text-xs text-neutral-500">
+                                                {new Date(step.timestamp).toLocaleString('pt-BR', {
+                                                    day: '2-digit',
+                                                    month: '2-digit',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit',
+                                                    second: '2-digit'
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className={`text-xs ${isActive ? 'text-neutral-300' : 'text-neutral-500'}`}>
                                     {showError ? email.errorMessage || 'Falha no envio do email' : step.description}
@@ -166,6 +302,31 @@ const EmailStatusTimeline = ({ email }: { email: SentEmail }) => {
                     );
                 })}
             </div>
+
+            {/* Resumo de Performance */}
+            {!isError && email.opened && (
+                <div className="mt-4 pt-3 border-t border-neutral-700">
+                    <h5 className="text-xs font-semibold text-neutral-300 mb-2">Métricas de Engajamento</h5>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                        {email.openedAt && email.sentAt && (
+                            <div className="bg-neutral-700/50 p-2 rounded">
+                                <span className="text-neutral-400">Tempo para abertura:</span>
+                                <div className="text-purple-400 font-medium">
+                                    {Math.round((new Date(email.openedAt).getTime() - new Date(email.sentAt).getTime()) / 60000)} min
+                                </div>
+                            </div>
+                        )}
+                        {email.clickedAt && email.openedAt && (
+                            <div className="bg-neutral-700/50 p-2 rounded">
+                                <span className="text-neutral-400">Tempo para clique:</span>
+                                <div className="text-indigo-400 font-medium">
+                                    {Math.round((new Date(email.clickedAt).getTime() - new Date(email.openedAt).getTime()) / 60000)} min
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -332,10 +493,21 @@ const EngagementMetrics = ({ stats }: {
 export default function SentEmails() {
     const [emails, setEmails] = useState<SentEmail[]>([]);
     const [loading, setLoading] = useState(true);
+    const [autoRefreshing, setAutoRefreshing] = useState(false);
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+
+    // Modal states
+    const [selectedEmail, setSelectedEmail] = useState<SentEmail | null>(null);
+    const [showModal, setShowModal] = useState(false);
+
+    // Auto-refresh states
+    const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+    const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+    const [totalPendingEmails, setTotalPendingEmails] = useState(0); // Total real de pendentes
+
     const [globalStats, setGlobalStats] = useState({
         total: 0,
         sent: 0,
@@ -346,15 +518,33 @@ export default function SentEmails() {
         pending: 0,
     });
 
-    // Modal states
-    const [selectedEmail, setSelectedEmail] = useState<SentEmail | null>(null);
-    const [showModal, setShowModal] = useState(false);
-
     // UI states
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-    const fetchEmails = useCallback(async () => {
-        setLoading(true);
+    // Buscar total real de emails pendentes
+    const fetchTotalPendingEmails = useCallback(async () => {
+        try {
+            const response = await fetch('/api/sent-emails?limit=1&countOnly=true');
+            if (response.ok) {
+                const data = await response.json();
+                const pending = data.stats?.pending || 0;
+                setTotalPendingEmails(pending);
+                return pending;
+            }
+        } catch (error) {
+            console.error('Erro ao buscar total de emails pendentes:', error);
+        }
+        return 0;
+    }, []);
+
+    // Fetch data function com parâmetro para indicar se é auto-refresh
+    const fetchEmails = useCallback(async (isAutoRefresh: boolean = false) => {
+        if (!isAutoRefresh) {
+            setLoading(true); // Só mostra loading no carregamento inicial
+        } else {
+            setAutoRefreshing(true); // Indica que está fazendo auto-refresh
+        }
+
         try {
             const params = new URLSearchParams({
                 page: currentPage.toString(),
@@ -366,31 +556,89 @@ export default function SentEmails() {
             const response = await fetch(`/api/sent-emails?${params}`);
             if (response.ok) {
                 const data = await response.json();
-                setEmails(data.emails);
-                setTotalPages(data.pagination.pages);
-                setGlobalStats(data.stats);
+
+                // Para auto-refresh, fazemos uma transição mais suave
+                if (isAutoRefresh) {
+                    // Pequeno delay para suavizar a transição
+                    setTimeout(() => {
+                        setEmails(data.emails);
+                        setTotalPages(data.pagination.pages);
+                        setGlobalStats(data.stats);
+                        setLastRefreshTime(new Date());
+
+                        // Atualiza total real de pendentes
+                        setTotalPendingEmails(data.stats?.pending || 0);
+                    }, 50); // Pequeno delay para suavizar
+                } else {
+                    // Carregamento normal
+                    setEmails(data.emails);
+                    setTotalPages(data.pagination.pages);
+                    setGlobalStats(data.stats);
+                    setLastRefreshTime(new Date());
+
+                    // Atualiza total real de pendentes
+                    setTotalPendingEmails(data.stats?.pending || 0);
+                }
             } else {
-                setMessage({ type: 'error', text: 'Erro ao carregar emails enviados' });
+                if (!isAutoRefresh) {
+                    setMessage({ type: 'error', text: 'Erro ao carregar emails enviados' });
+                }
             }
         } catch (error) {
             console.error('Erro ao buscar emails enviados:', error);
-            setMessage({ type: 'error', text: 'Erro ao conectar com o servidor' });
+            if (!isAutoRefresh) {
+                setMessage({ type: 'error', text: 'Erro ao conectar com o servidor' });
+            }
         } finally {
-            setLoading(false);
+            if (!isAutoRefresh) {
+                setLoading(false);
+            } else {
+                // Pequeno delay antes de remover o estado de auto-refresh
+                setTimeout(() => {
+                    setAutoRefreshing(false);
+                }, 100);
+            }
         }
     }, [currentPage, search, status]);
 
+    // Auto-refresh effect otimizado - funciona sempre quando habilitado
     useEffect(() => {
-        fetchEmails();
+        let intervalId: NodeJS.Timeout | null = null;
+
+        if (autoRefreshEnabled) {
+            // Intervalo mais frequente se há emails pendentes, menos frequente se não há
+            const interval = totalPendingEmails > 0 ? 3000 : 10000; // 3s ou 10s
+
+            intervalId = setInterval(() => {
+                fetchEmails(true); // Indica que é auto-refresh
+            }, interval);
+        }
+
+        return () => {
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+        };
+    }, [fetchEmails, autoRefreshEnabled, totalPendingEmails]);
+
+    // Initial fetch
+    useEffect(() => {
+        fetchEmails(false); // Carregamento inicial
     }, [fetchEmails]);
+
+    // Buscar total de pendentes periodicamente
+    useEffect(() => {
+        fetchTotalPendingEmails();
+        const interval = setInterval(fetchTotalPendingEmails, 10000); // A cada 10 segundos
+        return () => clearInterval(interval);
+    }, [fetchTotalPendingEmails]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         setCurrentPage(1);
-        fetchEmails();
+        fetchEmails(false);
     };
 
-    // Modal functions
     const openModal = (email: SentEmail) => {
         setSelectedEmail(email);
         setShowModal(true);
@@ -401,32 +649,96 @@ export default function SentEmails() {
         setSelectedEmail(null);
     };
 
-    const getStatusColor = (emailStatus: string) => {
-        const colors = {
-            pending: 'bg-yellow-900/50 text-yellow-300 border-yellow-700',
-            sending: 'bg-blue-900/50 text-blue-300 border-blue-700',
-            sent: 'bg-green-900/50 text-green-300 border-green-700',
-            delivered: 'bg-green-900/50 text-green-300 border-green-700',
-            opened: 'bg-purple-900/50 text-purple-300 border-purple-700',
-            clicked: 'bg-indigo-900/50 text-indigo-300 border-indigo-700',
-            bounced: 'bg-orange-900/50 text-orange-300 border-orange-700',
-            failed: 'bg-red-900/50 text-red-300 border-red-700',
-        };
-        return colors[emailStatus as keyof typeof colors] || 'bg-neutral-800 text-neutral-300 border-neutral-600';
-    };
-
     return (
         <MainLayout>
+            {/* Estilos customizados */}
+            <style jsx>{smoothTransitionStyles}</style>
+
             <div className="p-8">
-                <div className="max-w-6xl mx-auto">
+                <div className="max-w-7xl mx-auto">
                     {/* Header */}
-                    <div className="mb-8">
-                        <h1 className="text-3xl font-bold text-white mb-2">
-                            Emails Enviados
-                        </h1>
-                        <p className="text-neutral-400">
-                            Histórico e monitoramento de todos os emails enviados
-                        </p>
+                    <div className="mb-8 flex items-center justify-between">
+                        <div>
+                            <h1 className="text-3xl font-bold text-white mb-2">
+                                Emails Enviados
+                            </h1>
+                            <p className="text-neutral-400">
+                                Acompanhe o status e engagement dos seus emails
+                            </p>
+                        </div>
+
+                        {/* Controls com indicador de auto-refresh melhorado */}
+                        <div className="flex items-center gap-4">
+                            {/* Indicador de Auto-refresh Melhorado - Sempre visível */}
+                            <div className={`flex items-center gap-3 px-3 py-2 bg-black/90 rounded-lg border border-neutral-800 smooth-refresh-transition ${autoRefreshing ? 'border-blue-500/30' : ''
+                                }`}>
+                                {/* Status compacto */}
+                                <div className="flex items-center gap-2">
+                                    <div className={`w-2 h-2 rounded-full transition-all duration-300 ${autoRefreshing
+                                        ? 'bg-blue-400 animate-pulse'
+                                        : autoRefreshEnabled
+                                            ? 'bg-green-400'
+                                            : 'bg-neutral-500'
+                                        }`}></div>
+                                    <span className="text-xs text-neutral-300">
+                                        {autoRefreshing ? 'Atualizando' : autoRefreshEnabled ? 'Auto-refresh' : 'Pausado'}
+                                    </span>
+                                </div>
+
+                                {/* Contador de pendentes - só aparece se houver pendentes */}
+                                {totalPendingEmails > 0 && (
+                                    <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-900/40 text-orange-300 rounded text-xs border border-orange-800/50">
+                                        <Clock className="w-3 h-3" />
+                                        <span>{totalPendingEmails}</span>
+                                    </div>
+                                )}
+
+                                {/* Horário compacto */}
+                                {lastRefreshTime && (
+                                    <div className="text-neutral-400 text-xs">
+                                        <AnimatedTime time={lastRefreshTime} />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Controles de Auto-refresh Redesenhados */}
+                            <div className="flex items-center gap-2">
+                                {/* Toggle Auto-refresh */}
+                                <button
+                                    onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all duration-200 ${autoRefreshEnabled
+                                        ? 'bg-green-600 border-green-500 text-white hover:bg-green-700 shadow-lg shadow-green-600/20'
+                                        : 'bg-neutral-800 border-neutral-700 text-neutral-400 hover:bg-neutral-700 hover:text-neutral-300'
+                                        }`}
+                                    title={autoRefreshEnabled ? 'Pausar auto-refresh' : 'Ativar auto-refresh'}
+                                >
+                                    {autoRefreshEnabled ? (
+                                        <>
+                                            <Pause className="h-4 w-4" />
+                                            <span className="text-sm font-medium">Pausar</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Play className="h-4 w-4" />
+                                            <span className="text-sm font-medium">Ativar</span>
+                                        </>
+                                    )}
+                                </button>
+
+                                {/* Refresh Manual - só aparece quando auto-refresh está desabilitado */}
+                                {!autoRefreshEnabled && (
+                                    <button
+                                        onClick={() => fetchEmails(false)}
+                                        disabled={loading}
+                                        className="flex items-center gap-2 px-3 py-2 bg-blue-600 border border-blue-500 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20"
+                                        title="Atualizar agora"
+                                    >
+                                        <RefreshCw className={`h-4 w-4 transition-transform duration-200 ${loading ? 'animate-spin' : ''}`} />
+                                        <span className="text-sm font-medium">Atualizar</span>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     {/* Message */}
@@ -445,10 +757,10 @@ export default function SentEmails() {
                         </div>
                     )}
 
-                    {/* Stats */}
+                    {/* Global Stats */}
                     <EngagementMetrics stats={globalStats} />
 
-                    {/* Filters and Search */}
+                    {/* Filters */}
                     <div className="bg-neutral-gradient rounded-lg p-6 border border-neutral-800 mb-6">
                         <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
                             <div className="flex-1">
@@ -456,7 +768,7 @@ export default function SentEmails() {
                                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400 pointer-events-none" />
                                     <input
                                         type="text"
-                                        placeholder="Buscar por destinatário, assunto..."
+                                        placeholder="Buscar por destinatário, assunto ou conteúdo..."
                                         className="w-full pl-10 pr-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
                                         value={search}
                                         onChange={(e) => setSearch(e.target.value)}
@@ -471,13 +783,12 @@ export default function SentEmails() {
                                 >
                                     <option value="">Todos os status</option>
                                     <option value="pending">Pendente</option>
-                                    <option value="sending">Enviando</option>
                                     <option value="sent">Enviado</option>
                                     <option value="delivered">Entregue</option>
                                     <option value="opened">Aberto</option>
                                     <option value="clicked">Clicado</option>
+                                    <option value="failed">Falhado</option>
                                     <option value="bounced">Rejeitado</option>
-                                    <option value="failed">Falhou</option>
                                 </select>
                                 <button
                                     type="submit"
@@ -489,155 +800,145 @@ export default function SentEmails() {
                         </form>
                     </div>
 
-                    {/* Emails List */}
-                    {loading ? (
-                        <div className="bg-neutral-gradient rounded-lg p-12 border border-neutral-800 text-center">
-                            <div className="text-neutral-400">Carregando emails...</div>
-                        </div>
-                    ) : emails.length === 0 ? (
-                        <div className="bg-neutral-gradient rounded-lg p-12 border border-neutral-800 text-center">
-                            <Mail className="h-16 w-16 text-neutral-500 mx-auto mb-4" />
-                            <h3 className="text-xl font-semibold text-white mb-2">
-                                Nenhum email encontrado
-                            </h3>
-                            <p className="text-neutral-400 mb-6">
-                                {search || status
-                                    ? 'Nenhum email corresponde aos filtros aplicados.'
-                                    : 'Você ainda não enviou nenhum email. Comece enviando seu primeiro email.'
-                                }
-                            </p>
-                            <a
-                                href="/send-email"
-                                className="inline-flex items-center px-6 py-3 bg-white text-black font-medium rounded-lg hover:bg-neutral-200 transition-colors cursor-pointer"
-                            >
-                                Enviar Primeiro Email
-                            </a>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {emails.map((email) => {
-                                return (
+                    {/* Lista de Emails com transições suaves */}
+                    <div className={`bg-neutral-gradient rounded-lg border border-neutral-800 smooth-refresh-transition ${autoRefreshing ? 'opacity-95 refresh-shimmer' : 'opacity-100'
+                        }`}>
+                        {loading ? (
+                            <div className="p-12 text-center">
+                                <div className="inline-flex items-center gap-3 text-neutral-400">
+                                    <RefreshCw className="h-5 w-5 animate-spin" />
+                                    Carregando emails...
+                                </div>
+                            </div>
+                        ) : emails.length === 0 ? (
+                            <div className="p-12 text-center">
+                                <div className="w-16 h-16 mx-auto mb-4 bg-neutral-800 rounded-full flex items-center justify-center">
+                                    <Mail className="w-8 h-8 text-neutral-500" />
+                                </div>
+                                <h3 className="text-xl font-semibold text-white mb-2">
+                                    Nenhum email encontrado
+                                </h3>
+                                <p className="text-neutral-400 mb-6">
+                                    {search || status
+                                        ? 'Nenhum email corresponde aos filtros aplicados.'
+                                        : 'Você ainda não enviou nenhum email através da plataforma.'
+                                    }
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-neutral-800">
+                                {emails.map((email, index) => (
                                     <div
                                         key={email.id}
-                                        className="bg-neutral-gradient rounded-lg p-4 border border-neutral-800 hover:border-neutral-700 transition-colors"
+                                        className={`p-6 hover:bg-neutral-800/30 transition-all duration-200 cursor-pointer transform smooth-refresh-transition stagger-fade-in ${autoRefreshing ? 'scale-[0.999]' : 'scale-100'
+                                            }`}
+                                        onClick={() => openModal(email)}
+                                        style={{
+                                            animationDelay: `${index * 50}ms`
+                                        }}
                                     >
                                         <div className="flex items-center gap-3">
-                                            {/* Status Icon */}
-                                            <div className="flex-shrink-0">
-                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getStatusColor(email.status)}`}>
-                                                    <div className="w-4 h-4">
-                                                        {email.status === 'pending' && <Clock className="w-4 h-4" />}
-                                                        {email.status === 'sending' && <Send className="w-4 h-4" />}
-                                                        {['sent', 'delivered'].includes(email.status) && <Check className="w-4 h-4" />}
-                                                        {email.status === 'opened' && <Eye className="w-4 h-4" />}
-                                                        {email.status === 'clicked' && <ExternalLink className="w-4 h-4" />}
-                                                        {email.status === 'bounced' && <AlertCircle className="w-4 h-4" />}
-                                                        {email.status === 'failed' && <X className="w-4 h-4" />}
-                                                    </div>
-                                                </div>
+                                            {/* Avatar */}
+                                            <div className="w-10 h-10 bg-neutral-800 rounded-full flex items-center justify-center flex-shrink-0">
+                                                <User className="w-5 h-5 text-neutral-400" />
                                             </div>
 
                                             {/* Email Info */}
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-start justify-between">
-                                                    <div className="flex-1 min-w-0 pr-4">
-                                                        {/* Linha 1: Assunto + Status */}
-                                                        <div className="flex items-center gap-3 mb-2">
-                                                            <h3 className="text-base font-semibold text-white truncate">
-                                                                {email.subject}
+                                                    <div className="flex-1 min-w-0">
+                                                        {/* Nome do contato - sem status badge aqui */}
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <h3 className="font-medium text-white truncate">
+                                                                {email.toName || 'Sem nome'}
                                                             </h3>
-                                                            <StatusBadge email={email} />
+                                                            {/* Engagement indicators inline com o nome */}
+                                                            {email.opened && (
+                                                                <div className="flex items-center gap-1 text-green-400 text-xs">
+                                                                    <Eye className="w-3 h-3" />
+                                                                    <span>Aberto</span>
+                                                                </div>
+                                                            )}
+                                                            {email.clicked && (
+                                                                <div className="flex items-center gap-1 text-blue-400 text-xs">
+                                                                    <ExternalLink className="w-3 h-3" />
+                                                                    <span>Clicado</span>
+                                                                </div>
+                                                            )}
                                                         </div>
 
-                                                        {/* Linha 2: Destinatário + Empresa */}
-                                                        <div className="flex items-center gap-4 mb-2">
-                                                            <div className="flex items-center gap-1.5 text-sm text-neutral-300">
-                                                                <User className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
-                                                                <span className="truncate">{email.toName} ({email.toEmail})</span>
-                                                            </div>
-                                                            {email.contact && email.contact.companyName && (
-                                                                <div className="flex items-center gap-1.5 text-sm text-neutral-300">
-                                                                    <Building className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
+                                                        <div className="flex items-center gap-2 text-sm text-neutral-400 mb-1">
+                                                            <span className="truncate">{email.toEmail}</span>
+                                                            {email.contact?.companyName && (
+                                                                <>
+                                                                    <span>•</span>
+                                                                    <Building className="w-3 h-3 flex-shrink-0" />
                                                                     <span className="truncate">{email.contact.companyName}</span>
-                                                                </div>
+                                                                </>
                                                             )}
                                                         </div>
 
-                                                        {/* Linha 3: Informações detalhadas do status */}
-                                                        <div className="flex items-center gap-4 mb-2">
-                                                            {email.sentAt && (
-                                                                <div className="flex items-center gap-1 text-xs text-neutral-400">
-                                                                    <Send className="h-3 w-3" />
-                                                                    <span>Enviado: {new Date(email.sentAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                                                                </div>
-                                                            )}
-                                                            {email.deliveredAt && (
-                                                                <div className="flex items-center gap-1 text-xs text-green-400">
-                                                                    <Check className="h-3 w-3" />
-                                                                    <span>Entregue: {new Date(email.deliveredAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                                                                </div>
-                                                            )}
-                                                            {email.openedAt && (
-                                                                <div className="flex items-center gap-1 text-xs text-purple-400">
-                                                                    <Eye className="h-3 w-3" />
-                                                                    <span>Aberto: {new Date(email.openedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                                                                </div>
-                                                            )}
-                                                            {email.clickedAt && (
-                                                                <div className="flex items-center gap-1 text-xs text-indigo-400">
-                                                                    <ExternalLink className="h-3 w-3" />
-                                                                    <span>Clicado: {new Date(email.clickedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                                                                </div>
-                                                            )}
-                                                        </div>
+                                                        <p className="text-neutral-300 text-sm font-medium truncate mb-2">
+                                                            {email.subject}
+                                                        </p>
 
-                                                        {/* Linha 4: Template + Data de criação */}
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="flex items-center gap-4 text-xs text-neutral-400">
-                                                                {email.template && (
-                                                                    <span className="px-2 py-0.5 bg-neutral-800 text-neutral-300 rounded text-xs border border-neutral-600 truncate">
-                                                                        {email.template.name}
-                                                                    </span>
-                                                                )}
-                                                                {email.script && (
-                                                                    <span className="text-neutral-500 capitalize">
-                                                                        {email.script.emailType.replace('_', ' ')}
-                                                                    </span>
-                                                                )}
-                                                                {email.errorMessage && (
-                                                                    <div className="flex items-center gap-1 text-red-400">
-                                                                        <AlertCircle className="h-3 w-3" />
-                                                                        <span className="truncate max-w-48">{email.errorMessage}</span>
-                                                                    </div>
-                                                                )}
+                                                        <div className="flex items-center gap-4 text-xs text-neutral-500">
+                                                            <div className="flex items-center gap-1">
+                                                                <Calendar className="w-3 h-3" />
+                                                                {email.sentAt
+                                                                    ? new Date(email.sentAt).toLocaleString('pt-BR')
+                                                                    : new Date(email.createdAt).toLocaleString('pt-BR')
+                                                                }
                                                             </div>
-                                                            <div className="flex items-center text-xs text-neutral-500 flex-shrink-0">
-                                                                <Calendar className="h-3 w-3 mr-1" />
-                                                                {new Date(email.createdAt).toLocaleString('pt-BR')}
-                                                            </div>
+
+                                                            {email.template?.name && (
+                                                                <div className="flex items-center gap-1">
+                                                                    <FileText className="w-3 h-3" />
+                                                                    <span className="truncate max-w-[120px]">{email.template.name}</span>
+                                                                </div>
+                                                            )}
+
+                                                            {email.script?.emailType && (
+                                                                <div className="flex items-center gap-1">
+                                                                    <Activity className="w-3 h-3" />
+                                                                    <span>
+                                                                        {email.script.emailType === 'cold_outreach' && 'Primeiro Contato'}
+                                                                        {email.script.emailType === 'follow_up' && 'Follow-up'}
+                                                                        {email.script.emailType === 'introduction' && 'Apresentação'}
+                                                                        {email.script.emailType === 'meeting_request' && 'Agendamento'}
+                                                                    </span>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
 
-                                                    {/* Action Button */}
-                                                    <div className="flex-shrink-0">
-                                                        <button
-                                                            onClick={() => openModal(email)}
-                                                            className="flex items-center gap-1.5 px-3 py-2 bg-neutral-800 text-white rounded-md hover:bg-neutral-700 transition-colors border border-neutral-600 text-xs cursor-pointer"
-                                                            title="Ver detalhes e linha do tempo"
-                                                        >
-                                                            <Eye className="h-3.5 w-3.5" />
-                                                            <span className="hidden sm:inline">Detalhes</span>
-                                                            <ChevronRight className="h-3 w-3" />
-                                                        </button>
+                                                    <div className="flex items-center gap-3 ml-4 flex-shrink-0">
+                                                        {/* Status Badge ao lado do botão de detalhes */}
+                                                        <StatusBadge email={email} />
+
+                                                        <div className="flex-shrink-0">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    openModal(email);
+                                                                }}
+                                                                className="flex items-center gap-1.5 px-3 py-2 bg-neutral-800 text-white rounded-md hover:bg-neutral-700 transition-colors border border-neutral-600 text-xs cursor-pointer"
+                                                                title="Ver detalhes e linha do tempo"
+                                                            >
+                                                                <Eye className="w-3 h-3" />
+                                                                Detalhes
+                                                                <ChevronRight className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    )}
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
                     {/* Pagination */}
                     {emails.length > 0 && totalPages > 1 && (
@@ -667,40 +968,21 @@ export default function SentEmails() {
 
                 {/* Modal */}
                 {showModal && selectedEmail && (
-                    <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                        <div className="bg-neutral-900 rounded-xl max-w-6xl w-full max-h-[90vh] overflow-hidden border border-neutral-700 shadow-2xl">
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                        <div className="bg-neutral-900 rounded-lg max-w-6xl w-full max-h-[90vh] overflow-hidden border border-neutral-700">
                             {/* Modal Header */}
-                            <div className="p-6 border-b border-neutral-700 flex items-center justify-between bg-gradient-to-r from-neutral-800 to-neutral-900">
+                            <div className="px-6 py-4 border-b border-neutral-700 flex items-center justify-between bg-gradient-to-r from-neutral-800 to-neutral-900">
                                 <div className="flex items-center gap-3">
-                                    <div className="flex-shrink-0">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getStatusColor(selectedEmail.status)}`}>
-                                            <div className="w-5 h-5">
-                                                {selectedEmail.status === 'pending' && <Clock className="w-5 h-5" />}
-                                                {selectedEmail.status === 'sending' && <Send className="w-5 h-5" />}
-                                                {['sent', 'delivered'].includes(selectedEmail.status) && <Check className="w-5 h-5" />}
-                                                {selectedEmail.status === 'opened' && <Eye className="w-5 h-5" />}
-                                                {selectedEmail.status === 'clicked' && <ExternalLink className="w-5 h-5" />}
-                                                {selectedEmail.status === 'bounced' && <AlertCircle className="w-5 h-5" />}
-                                                {selectedEmail.status === 'failed' && <X className="w-5 h-5" />}
-                                            </div>
-                                        </div>
+                                    <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                                        <Mail className="h-5 w-5 text-white" />
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-bold text-white mb-1">
-                                            {selectedEmail.subject}
+                                        <h2 className="text-xl font-bold text-white">
+                                            Detalhes do Email
                                         </h2>
-                                        <div className="flex items-center gap-2">
-                                            <StatusBadge email={selectedEmail} />
-                                            {selectedEmail.contact ? (
-                                                <span className="text-neutral-400 text-sm">
-                                                    • {selectedEmail.toName} ({selectedEmail.contact.companyName})
-                                                </span>
-                                            ) : (
-                                                <span className="text-neutral-400 text-sm">
-                                                    • {selectedEmail.toName} (Contato removido)
-                                                </span>
-                                            )}
-                                        </div>
+                                        <p className="text-sm text-neutral-400">
+                                            {selectedEmail.toName} • {selectedEmail.toEmail}
+                                        </p>
                                     </div>
                                 </div>
                                 <button
@@ -711,178 +993,194 @@ export default function SentEmails() {
                                 </button>
                             </div>
 
-                            {/* Modal Content */}
-                            <div className="flex max-h-[calc(90vh-200px)]">
-                                {/* Coluna esquerda - Informações */}
-                                <div className="w-1/2 p-6 overflow-y-auto border-r border-neutral-700">
-                                    {/* Email Details */}
-                                    <div className="mb-6">
-                                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                                            <Mail className="h-5 w-5 text-blue-400" />
-                                            Detalhes do Email
-                                        </h3>
-
-                                        <div className="space-y-4">
-                                            <div className="bg-neutral-800/50 rounded-lg p-4">
-                                                <h4 className="font-medium text-white mb-3">Envio</h4>
-                                                <div className="space-y-2 text-sm">
-                                                    <div className="flex justify-between">
-                                                        <span className="text-neutral-400">Para:</span>
-                                                        <span className="text-white">{selectedEmail.toName}</span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span className="text-neutral-400">Email:</span>
-                                                        <span className="text-white">{selectedEmail.toEmail}</span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span className="text-neutral-400">De:</span>
-                                                        <span className="text-white">{selectedEmail.fromName}</span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span className="text-neutral-400">Email remetente:</span>
-                                                        <span className="text-white">{selectedEmail.fromEmail}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-neutral-800/50 rounded-lg p-4">
-                                                <h4 className="font-medium text-white mb-3">Configuração SMTP</h4>
-                                                <div className="space-y-2 text-sm">
-                                                    <div className="flex justify-between">
-                                                        <span className="text-neutral-400">Servidor:</span>
-                                                        <span className="text-white">{selectedEmail.smtpHost}</span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span className="text-neutral-400">Porta:</span>
-                                                        <span className="text-white">{selectedEmail.smtpPort}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {selectedEmail.template && (
-                                                <div className="bg-neutral-800/50 rounded-lg p-4">
-                                                    <h4 className="font-medium text-white mb-3">Template</h4>
-                                                    <div className="text-sm">
-                                                        <span className="px-2 py-1 bg-blue-900/50 text-blue-300 rounded text-xs border border-blue-700">
-                                                            {selectedEmail.template.name}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {selectedEmail.script && (
-                                                <div className="bg-neutral-800/50 rounded-lg p-4">
-                                                    <h4 className="font-medium text-white mb-3">Script</h4>
-                                                    <div className="text-sm">
-                                                        <span className="px-2 py-1 bg-green-900/50 text-green-300 rounded text-xs border border-green-700 capitalize">
-                                                            {selectedEmail.script.emailType.replace('_', ' ')}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Error Message */}
-                                    {selectedEmail.errorMessage && (
+                            {/* Modal Content com Abas */}
+                            <div className="flex flex-1 h-[calc(90vh-120px)]">
+                                {/* Aba de Informações Gerais */}
+                                <div className="w-1/2 border-r border-neutral-700 overflow-y-auto">
+                                    <div className="p-6">
+                                        {/* Seção: Informações Básicas */}
                                         <div className="mb-6">
-                                            <h3 className="text-lg font-semibold text-red-300 mb-4 flex items-center gap-2">
-                                                <AlertCircle className="h-5 w-5" />
-                                                Erro no Envio
+                                            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                                                <User className="h-5 w-5 text-blue-400" />
+                                                Informações Básicas
                                             </h3>
-                                            <div className="bg-red-900/50 border border-red-700 rounded-lg p-4">
-                                                <p className="text-red-200 text-sm leading-relaxed">{selectedEmail.errorMessage}</p>
+                                            <div className="space-y-3">
+                                                <div className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg">
+                                                    <span className="text-neutral-400 text-sm">ID do Email:</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <code className="text-white bg-neutral-700 px-2 py-1 rounded text-xs font-mono">
+                                                            {selectedEmail.id}
+                                                        </code>
+                                                        <button
+                                                            onClick={() => navigator.clipboard.writeText(selectedEmail.id)}
+                                                            className="text-neutral-400 hover:text-white transition-colors"
+                                                            title="Copiar ID"
+                                                        >
+                                                            <Copy className="h-3 w-3" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg">
+                                                    <span className="text-neutral-400 text-sm">Para (Nome):</span>
+                                                    <span className="text-white font-medium">{selectedEmail.toName}</span>
+                                                </div>
+
+                                                <div className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg">
+                                                    <span className="text-neutral-400 text-sm">Para (Email):</span>
+                                                    <span className="text-white font-mono text-sm">{selectedEmail.toEmail}</span>
+                                                </div>
+
+                                                <div className="p-3 bg-neutral-800/50 rounded-lg">
+                                                    <span className="text-neutral-400 text-sm block mb-2">Assunto:</span>
+                                                    <span className="text-white">{selectedEmail.subject}</span>
+                                                </div>
+
+                                                <div className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg">
+                                                    <span className="text-neutral-400 text-sm">Status do Contato:</span>
+                                                    <span className={`text-xs px-2 py-1 rounded font-medium ${selectedEmail.contact
+                                                        ? 'bg-green-900/50 text-green-300'
+                                                        : 'bg-neutral-700 text-neutral-400'
+                                                        }`}>
+                                                        {selectedEmail.contact ? 'Vinculado' : 'Sem contato'}
+                                                    </span>
+                                                </div>
+
+                                                {selectedEmail.template && (
+                                                    <div className="p-3 bg-neutral-800/50 rounded-lg">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <span className="text-neutral-400 text-sm">Template:</span>
+                                                            <span className="text-green-300 text-xs px-2 py-1 bg-green-900/50 rounded">Usado</span>
+                                                        </div>
+                                                        <span className="text-white font-medium">{selectedEmail.template.name}</span>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
-                                    )}
 
-                                    {/* Email Content Preview */}
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                                            <Eye className="h-5 w-5 text-purple-400" />
-                                            Preview do Conteúdo
-                                        </h3>
-                                        <div className="bg-white rounded-lg p-4 max-h-64 overflow-y-auto border border-neutral-600">
-                                            {selectedEmail.htmlContent ? (
-                                                <div
-                                                    dangerouslySetInnerHTML={{ __html: selectedEmail.htmlContent }}
-                                                    className="prose prose-sm max-w-none"
-                                                    style={{ fontSize: '12px', lineHeight: '1.4' }}
-                                                />
-                                            ) : (
-                                                <p className="text-gray-500 text-center text-sm">Nenhum conteúdo para visualizar</p>
-                                            )}
+                                        {/* Seção: Configurações SMTP */}
+                                        <div className="mb-6">
+                                            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                                                <Server className="h-5 w-5 text-green-400" />
+                                                Configurações SMTP
+                                            </h3>
+                                            <div className="space-y-3">
+                                                <div className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg">
+                                                    <span className="text-neutral-400 text-sm">De (Nome):</span>
+                                                    <span className="text-white font-medium">{selectedEmail.fromName}</span>
+                                                </div>
+
+                                                <div className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg">
+                                                    <span className="text-neutral-400 text-sm">De (Email):</span>
+                                                    <span className="text-white font-mono text-sm">{selectedEmail.fromEmail}</span>
+                                                </div>
+
+                                                <div className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg">
+                                                    <span className="text-neutral-400 text-sm">Servidor SMTP:</span>
+                                                    <span className="text-white font-mono text-sm">{selectedEmail.smtpHost}</span>
+                                                </div>
+
+                                                <div className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg">
+                                                    <span className="text-neutral-400 text-sm">Porta SMTP:</span>
+                                                    <span className="text-white font-mono">{selectedEmail.smtpPort}</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
 
-                                {/* Coluna direita - Timeline */}
-                                <div className="w-1/2 p-6 overflow-y-auto">
-                                    <div className="mb-6">
+                                        {/* Seção: Tracking */}
+                                        <div className="mb-6">
+                                            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                                                <Link className="h-5 w-5 text-purple-400" />
+                                                Rastreamento
+                                            </h3>
+                                            <div className="space-y-3">
+                                                {selectedEmail.trackingId ? (
+                                                    <div className="flex items-center justify-between p-3 bg-neutral-800/50 rounded-lg">
+                                                        <span className="text-neutral-400 text-sm">ID de Tracking:</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <code className="text-white bg-neutral-700 px-2 py-1 rounded text-xs font-mono">
+                                                                {selectedEmail.trackingId}
+                                                            </code>
+                                                            <button
+                                                                onClick={() => selectedEmail.trackingId && navigator.clipboard.writeText(selectedEmail.trackingId)}
+                                                                className="text-neutral-400 hover:text-white transition-colors"
+                                                                title="Copiar Tracking ID"
+                                                            >
+                                                                <Copy className="h-3 w-3" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="p-3 bg-neutral-800/50 rounded-lg">
+                                                        <span className="text-neutral-400 text-sm">Tracking não configurado</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Seção: Conteúdo de Texto */}
+                                        {selectedEmail.textContent && (
+                                            <div className="mb-6">
+                                                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                                                    <FileText className="h-5 w-5 text-orange-400" />
+                                                    Conteúdo de Texto
+                                                </h3>
+                                                <div className="p-4 bg-neutral-800/50 rounded-lg">
+                                                    <pre className="text-neutral-300 text-sm whitespace-pre-wrap font-mono leading-relaxed max-h-40 overflow-y-auto">
+                                                        {selectedEmail.textContent}
+                                                    </pre>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Timeline de Status */}
                                         <EmailStatusTimeline email={selectedEmail} />
                                     </div>
-
-                                    {/* Métricas de performance se o email foi bem-sucedido */}
-                                    {['delivered', 'opened', 'clicked'].includes(selectedEmail.status) && (
-                                        <div className="bg-neutral-800/50 rounded-lg p-4">
-                                            <h4 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-                                                <TrendingUp className="h-4 w-4 text-green-400" />
-                                                Performance do Email
-                                            </h4>
-                                            <div className="space-y-3">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-neutral-400 text-sm">Status de entrega:</span>
-                                                    <div className="flex items-center gap-1 text-green-400 text-sm">
-                                                        <Check className="h-3 w-3" />
-                                                        <span>Entregue com sucesso</span>
-                                                    </div>
-                                                </div>
-
-                                                {selectedEmail.opened && (
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-neutral-400 text-sm">Engajamento:</span>
-                                                        <div className="flex items-center gap-1 text-purple-400 text-sm">
-                                                            <Eye className="h-3 w-3" />
-                                                            <span>Email foi aberto</span>
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {selectedEmail.clicked && (
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-neutral-400 text-sm">Interação:</span>
-                                                        <div className="flex items-center gap-1 text-indigo-400 text-sm">
-                                                            <ExternalLink className="h-3 w-3" />
-                                                            <span>Links foram clicados</span>
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {selectedEmail.sentAt && selectedEmail.openedAt && (
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-neutral-400 text-sm">Tempo para abertura:</span>
-                                                        <span className="text-blue-400 text-sm">
-                                                            {Math.round((new Date(selectedEmail.openedAt).getTime() - new Date(selectedEmail.sentAt).getTime()) / (1000 * 60))} min
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
-                            </div>
 
-                            {/* Modal Footer */}
-                            <div className="p-6 border-t border-neutral-700 flex items-center justify-between bg-neutral-800/30">
-                                <div className="text-sm text-neutral-400">
-                                    ID do rastreamento: {selectedEmail.trackingId || 'N/A'}
+                                {/* Aba de Preview do HTML */}
+                                <div className="w-1/2 flex flex-col">
+                                    <div className="p-4 border-b border-neutral-700 bg-neutral-800/30">
+                                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                            <Code className="h-5 w-5 text-indigo-400" />
+                                            Preview do Email HTML
+                                        </h3>
+                                        <p className="text-sm text-neutral-400 mt-1">
+                                            Visualização do conteúdo enviado
+                                        </p>
+                                    </div>
+
+                                    <div className="flex-1">
+                                        <EmailTemplatePreview
+                                            sendType="individual"
+                                            selectedTemplate={{
+                                                id: selectedEmail.id,
+                                                name: selectedEmail.template?.name || 'Email Enviado',
+                                                subject: selectedEmail.subject,
+                                                htmlContent: selectedEmail.htmlContent,
+                                                isActive: true
+                                            }}
+                                            selectedScript={null}
+                                            contactForPreview={selectedEmail.contact ? {
+                                                id: 'preview',
+                                                name: selectedEmail.contact.name,
+                                                email: selectedEmail.contact.email,
+                                                companyName: selectedEmail.contact.companyName,
+                                                isActive: true
+                                            } : null}
+                                            smtpConfig={{
+                                                fromEmail: selectedEmail.fromEmail,
+                                                fromName: selectedEmail.fromName,
+                                                host: selectedEmail.smtpHost,
+                                                port: selectedEmail.smtpPort,
+                                                secure: selectedEmail.smtpPort === 465
+                                            }}
+                                            className="h-full"
+                                            title="Conteúdo do Email Enviado"
+                                            showRawVariables={false}
+                                        />
+                                    </div>
                                 </div>
-                                <button
-                                    onClick={closeModal}
-                                    className="px-6 py-2.5 bg-white text-black rounded-lg hover:bg-neutral-200 transition-colors cursor-pointer font-medium"
-                                >
-                                    Fechar
-                                </button>
                             </div>
                         </div>
                     </div>
