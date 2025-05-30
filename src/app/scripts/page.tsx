@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import MainLayout from '@/components/MainLayout';
-import { Search, Filter, FileText, Calendar, User, Building, Eye, Trash2, X, Copy, Check, Tag, Edit3, Save, Plus } from 'lucide-react';
+import { Search, Filter, FileText, Calendar, User, Building, Eye, Trash2, X, Copy, Check, Tag, Edit3, Save } from 'lucide-react';
 
 interface Script {
     id: string;

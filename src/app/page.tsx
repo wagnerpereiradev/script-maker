@@ -3,15 +3,15 @@
 import { useEffect, useState } from 'react';
 import MainLayout from '@/components/MainLayout';
 import {
-  Mail, Users, FileText, TrendingUp, TrendingDown, Activity,
+  Mail, Users, FileText, TrendingUp, Activity,
   Eye, ExternalLink, Clock, Send, AlertCircle, BarChart3,
-  ArrowUpRight, ArrowDownRight, PieChart, Calendar, Zap,
+  ArrowUpRight, ArrowDownRight, PieChart, Zap,
   Target, Award, Rocket
 } from 'lucide-react';
 import Link from 'next/link';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart as RechartsPieChart, Cell, AreaChart, Area, BarChart, Bar, Pie
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart as RechartsPieChart, Cell, AreaChart, Area, Pie
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -74,7 +74,7 @@ const MetricCard = ({
 }: {
   title: string;
   value: string | number;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
   trend?: 'up' | 'down';
   trendValue?: string;
   color?: 'blue' | 'green' | 'purple' | 'orange' | 'red';
@@ -212,12 +212,6 @@ export default function Dashboard() {
     { name: 'Falharam', value: data.emails.failed, color: '#ef4444' },
   ] : [];
 
-  const statusData = data ? Object.entries(data.emails.byStatus).map(([status, count]) => ({
-    status: status.charAt(0).toUpperCase() + status.slice(1),
-    count,
-    color: status === 'sent' ? '#10b981' : status === 'opened' ? '#8b5cf6' : status === 'clicked' ? '#3b82f6' : '#6b7280'
-  })) : [];
-
   return (
     <MainLayout>
       <div className="p-8">
@@ -353,7 +347,7 @@ export default function Dashboard() {
                     cx="50%"
                     cy="50%"
                     outerRadius={80}
-                    label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   >
                     {pieData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />

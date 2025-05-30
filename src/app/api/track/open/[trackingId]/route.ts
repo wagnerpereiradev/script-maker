@@ -5,10 +5,10 @@ const prisma = new PrismaClient();
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { trackingId: string } }
+    { params }: { params: Promise<{ trackingId: string }> }
 ) {
     try {
-        const { trackingId } = params;
+        const { trackingId } = await params;
 
         if (!trackingId) {
             return new NextResponse('Tracking ID não fornecido', { status: 400 });

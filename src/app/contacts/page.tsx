@@ -61,50 +61,19 @@ const CustomCheckbox = ({
 
 export default function Contacts() {
     const [contacts, setContacts] = useState<Contact[]>([]);
+    const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState('');
-    const [isActive, setIsActive] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
-    const [totalContacts, setTotalContacts] = useState(0);
-
-    // Modal states
-    const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-    const [showViewModal, setShowViewModal] = useState(false);
-    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [showNewContactModal, setShowNewContactModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingContact, setEditingContact] = useState<Contact | null>(null);
     const [showImportModal, setShowImportModal] = useState(false);
-
-    // Selection states
-    const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
-    const [selectAll, setSelectAll] = useState(false);
-
-    // UI states
-    const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-    const [deleting, setDeleting] = useState(false);
-
-    // Import states
-    const [importFile, setImportFile] = useState<File | null>(null);
-    const [importData, setImportData] = useState<any[]>([]);
-    const [importMapping, setImportMapping] = useState<{ [key: string]: string }>({});
-    const [importStep, setImportStep] = useState<'upload' | 'mapping' | 'preview' | 'importing'>('upload');
-    const [importResults, setImportResults] = useState<{
-        success: number;
-        errors: { row: number; error: string }[];
-    } | null>(null);
     const [importing, setImporting] = useState(false);
 
-    // Confirmation modal states
-    const [showConfirmModal, setShowConfirmModal] = useState(false);
-    const [confirmAction, setConfirmAction] = useState<{
-        type: 'single' | 'multiple';
-        contactId?: string;
-        count?: number;
-        onConfirm: () => void;
-    } | null>(null);
-
-    // Form states
-    const [formData, setFormData] = useState({
+    const [newContact, setNewContact] = useState<Omit<Contact, 'id' | 'createdAt' | 'updatedAt'>>({
         name: '',
         email: '',
         phone: '',
@@ -115,8 +84,36 @@ export default function Contacts() {
         painPoints: '',
         previousInteraction: '',
         notes: '',
-        isActive: true
+        isActive: true,
     });
+
+    // Modal states
+    const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+
+    // Selection states
+    const [selectAll, setSelectAll] = useState(false);
+
+    // UI states
+    const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [deleting, setDeleting] = useState(false);
+
+    // Import states
+    const [importData, setImportData] = useState<Record<string, string>[]>([]);
+    const [importMapping, setImportMapping] = useState<{ [key: string]: string }>({});
+    const [importStep, setImportStep] = useState<'upload' | 'mapping' | 'preview' | 'importing'>('upload');
+    const [importResults, setImportResults] = useState<{
+        success: number;
+        errors: { row: number; error: string }[];
+    } | null>(null);
+
+    // Confirmation modal states
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [confirmAction, setConfirmAction] = useState<{
+        type: 'single' | 'multiple';
+        contactId?: string;
+        count?: number;
+        onConfirm: () => void;
+    } | null>(null);
 
     // Função para gerar cor do avatar baseada no nome
     const getAvatarColor = (name: string) => {
@@ -298,9 +295,9 @@ export default function Contacts() {
         try {
             const params = new URLSearchParams({
                 page: currentPage.toString(),
-                limit: itemsPerPage === -1 ? '999999' : itemsPerPage.toString(),
-                ...(search && { search }),
-                ...(isActive && { isActive }),
+                limit: '999999',
+                ...(searchTerm && { search: searchTerm }),
+                ...(statusFilter !== 'all' && { isActive: (statusFilter === 'active').toString() }),
             });
 
             const response = await fetch(`/api/contacts?${params}`);
@@ -308,7 +305,6 @@ export default function Contacts() {
                 const data = await response.json();
                 setContacts(data.contacts);
                 setTotalPages(data.pages);
-                setTotalContacts(data.total || data.contacts.length);
                 setSelectedContacts(new Set());
                 setSelectAll(false);
             }
@@ -318,7 +314,7 @@ export default function Contacts() {
         } finally {
             setLoading(false);
         }
-    }, [currentPage, search, isActive, itemsPerPage]);
+    }, [currentPage, searchTerm, statusFilter]);
 
     useEffect(() => {
         fetchContacts();
@@ -330,31 +326,14 @@ export default function Contacts() {
         fetchContacts();
     };
 
-    const handleItemsPerPageChange = (newItemsPerPage: number) => {
-        setItemsPerPage(newItemsPerPage);
-        setCurrentPage(1);
-    };
-
     const openViewModal = async (contactId: string) => {
         try {
             const response = await fetch(`/api/contacts/${contactId}`);
             if (response.ok) {
                 const contact = await response.json();
                 setSelectedContact(contact);
-                setFormData({
-                    name: contact.name,
-                    email: contact.email,
-                    phone: contact.phone || '',
-                    position: contact.position || '',
-                    companyName: contact.companyName,
-                    website: contact.website || '',
-                    niche: contact.niche || '',
-                    painPoints: contact.painPoints || '',
-                    previousInteraction: contact.previousInteraction || '',
-                    notes: contact.notes || '',
-                    isActive: contact.isActive
-                });
-                setShowViewModal(true);
+                setEditingContact(contact);
+                setShowEditModal(true);
             } else {
                 setMessage({ type: 'error', text: 'Erro ao carregar contato' });
             }
@@ -364,7 +343,7 @@ export default function Contacts() {
     };
 
     const openCreateModal = () => {
-        setFormData({
+        setNewContact({
             name: '',
             email: '',
             phone: '',
@@ -375,15 +354,16 @@ export default function Contacts() {
             painPoints: '',
             previousInteraction: '',
             notes: '',
-            isActive: true
+            isActive: true,
         });
-        setShowCreateModal(true);
+        setShowNewContactModal(true);
     };
 
     const closeModals = () => {
-        setShowViewModal(false);
-        setShowCreateModal(false);
+        setShowNewContactModal(false);
+        setShowEditModal(false);
         setSelectedContact(null);
+        setEditingContact(null);
     };
 
     // Selection functions
@@ -481,20 +461,20 @@ export default function Contacts() {
     // Form submission functions
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.name || !formData.email || !formData.companyName) {
+        if (!newContact.name || !newContact.email || !newContact.companyName) {
             setMessage({ type: 'error', text: 'Nome, email e empresa são obrigatórios' });
             return;
         }
 
-        if (formData.phone && !isValidPhoneNumber(formData.phone)) {
+        if (newContact.phone && !isValidPhoneNumber(newContact.phone)) {
             setMessage({ type: 'error', text: 'Formato de telefone inválido' });
             return;
         }
 
         try {
             const dataToSend = {
-                ...formData,
-                phone: formatPhoneNumber(formData.phone)
+                ...newContact,
+                phone: formatPhoneNumber(newContact.phone || '')
             };
 
             const response = await fetch('/api/contacts', {
@@ -518,23 +498,23 @@ export default function Contacts() {
 
     const handleEdit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedContact || !formData.name || !formData.email || !formData.companyName) {
+        if (!editingContact || !newContact.name || !newContact.email || !newContact.companyName) {
             setMessage({ type: 'error', text: 'Nome, email e empresa são obrigatórios' });
             return;
         }
 
-        if (formData.phone && !isValidPhoneNumber(formData.phone)) {
+        if (newContact.phone && !isValidPhoneNumber(newContact.phone)) {
             setMessage({ type: 'error', text: 'Formato de telefone inválido' });
             return;
         }
 
         try {
             const dataToSend = {
-                ...formData,
-                phone: formatPhoneNumber(formData.phone)
+                ...newContact,
+                phone: formatPhoneNumber(newContact.phone || '')
             };
 
-            const response = await fetch(`/api/contacts/${selectedContact.id}`, {
+            const response = await fetch(`/api/contacts/${editingContact.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dataToSend),
@@ -554,7 +534,7 @@ export default function Contacts() {
     };
 
     // Função para processar arquivo CSV
-    const parseCSV = (text: string): any[] => {
+    const parseCSV = (text: string): Record<string, string>[] => {
         const lines = text.split('\n').filter(line => line.trim());
         if (lines.length === 0) return [];
 
@@ -580,7 +560,7 @@ export default function Contacts() {
             values.push(current.trim());
 
             if (values.length === headers.length) {
-                const row: any = {};
+                const row: Record<string, string> = {};
                 headers.forEach((header, index) => {
                     row[header] = values[index] || '';
                 });
@@ -601,9 +581,8 @@ export default function Contacts() {
             return;
         }
 
-        setImportFile(file);
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const text = e.target?.result as string;
                 const data = parseCSV(text);
@@ -636,7 +615,7 @@ export default function Contacts() {
 
                 setImportMapping(defaultMapping);
                 setImportStep('mapping');
-            } catch (error) {
+            } catch {
                 setMessage({ type: 'error', text: 'Erro ao processar o arquivo CSV.' });
             }
         };
@@ -719,7 +698,7 @@ export default function Contacts() {
                         error: error.error || 'Erro ao criar contato'
                     });
                 }
-            } catch (error) {
+            } catch {
                 importErrors.push({
                     row: i + 1,
                     error: 'Erro de conexão'
@@ -737,7 +716,6 @@ export default function Contacts() {
 
     // Função para resetar importação
     const resetImport = () => {
-        setImportFile(null);
         setImportData([]);
         setImportMapping({});
         setImportStep('upload');
@@ -763,7 +741,7 @@ export default function Contacts() {
                                 <div className="flex items-center gap-2 px-3 py-1 bg-neutral-800 rounded-full border border-neutral-700">
                                     <Users className="h-4 w-4 text-neutral-400" />
                                     <span className="text-sm text-neutral-300 font-medium">
-                                        {totalContacts} {totalContacts === 1 ? 'contato' : 'contatos'}
+                                        {contacts.length} contato(s)
                                     </span>
                                 </div>
                             </div>
@@ -812,31 +790,20 @@ export default function Contacts() {
                                         type="text"
                                         placeholder="Buscar contatos..."
                                         className="w-full pl-10 pr-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
-                                        value={search}
-                                        onChange={(e) => setSearch(e.target.value)}
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
                                     />
                                 </div>
                             </div>
                             <div className="flex gap-3">
                                 <select
                                     className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-white cursor-pointer"
-                                    value={isActive}
-                                    onChange={(e) => setIsActive(e.target.value)}
+                                    value={statusFilter}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
                                 >
-                                    <option value="">Todos os status</option>
-                                    <option value="true">Ativos</option>
-                                    <option value="false">Inativos</option>
-                                </select>
-                                <select
-                                    className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-white cursor-pointer"
-                                    value={itemsPerPage}
-                                    onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                                >
-                                    <option value={10}>10 por página</option>
-                                    <option value={25}>25 por página</option>
-                                    <option value={50}>50 por página</option>
-                                    <option value={100}>100 por página</option>
-                                    <option value={-1}>Ver todos</option>
+                                    <option value="all">Todos os status</option>
+                                    <option value="active">Ativos</option>
+                                    <option value="inactive">Inativos</option>
                                 </select>
                                 <button
                                     type="submit"
@@ -860,7 +827,7 @@ export default function Contacts() {
                                 Nenhum contato encontrado
                             </h3>
                             <p className="text-neutral-400 mb-6">
-                                {search || isActive
+                                {searchTerm || statusFilter
                                     ? 'Nenhum contato corresponde aos filtros aplicados.'
                                     : 'Você ainda não adicionou nenhum contato. Comece criando seu primeiro contato.'
                                 }
@@ -1033,19 +1000,19 @@ export default function Contacts() {
                     )}
 
                     {/* Indicador "Ver todos" */}
-                    {contacts.length > 0 && itemsPerPage === -1 && (
+                    {contacts.length > 0 && statusFilter === 'all' && (
                         <div className="mt-8 flex items-center justify-center">
                             <div className="flex items-center gap-2 px-4 py-2 bg-blue-900/20 border border-blue-700 rounded-lg">
                                 <Users className="h-4 w-4 text-blue-400" />
                                 <span className="text-blue-300 text-sm">
-                                    Exibindo todos os {totalContacts} contatos
+                                    Exibindo todos os {contacts.length} contatos
                                 </span>
                             </div>
                         </div>
                     )}
 
                     {/* Pagination */}
-                    {contacts.length > 0 && totalPages > 1 && itemsPerPage !== -1 && (
+                    {contacts.length > 0 && totalPages > 1 && (
                         <div className="mt-8 flex items-center justify-center">
                             <div className="flex items-center gap-2">
                                 <button
@@ -1291,15 +1258,15 @@ export default function Contacts() {
                 )}
 
                 {/* Create Modal */}
-                {showCreateModal && (
+                {showNewContactModal && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                         <div className="bg-neutral-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden border border-neutral-700">
                             <div className="p-6 border-b border-neutral-700 flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     {/* Avatar Preview */}
                                     <div className="flex-shrink-0">
-                                        <div className={`w-10 h-10 rounded-full ${formData.name ? getAvatarColor(formData.name) : 'bg-neutral-600'} flex items-center justify-center text-white font-semibold text-sm shadow-lg`}>
-                                            {formData.name ? getInitials(formData.name) : '?'}
+                                        <div className={`w-10 h-10 rounded-full ${newContact.name ? getAvatarColor(newContact.name) : 'bg-neutral-600'} flex items-center justify-center text-white font-semibold text-sm shadow-lg`}>
+                                            {newContact.name ? getInitials(newContact.name) : '?'}
                                         </div>
                                     </div>
                                     <h2 className="text-xl font-bold text-white">
@@ -1322,8 +1289,8 @@ export default function Contacts() {
                                         </label>
                                         <input
                                             type="text"
-                                            value={formData.name}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                                            value={newContact.name}
+                                            onChange={(e) => setNewContact(prev => ({ ...prev, name: e.target.value }))}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
                                             placeholder="Nome do contato"
                                             required
@@ -1336,8 +1303,8 @@ export default function Contacts() {
                                         </label>
                                         <input
                                             type="email"
-                                            value={formData.email}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                                            value={newContact.email}
+                                            onChange={(e) => setNewContact(prev => ({ ...prev, email: e.target.value }))}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
                                             placeholder="email@exemplo.com"
                                             required
@@ -1350,8 +1317,8 @@ export default function Contacts() {
                                         </label>
                                         <input
                                             type="tel"
-                                            value={formData.phone}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                                            value={newContact.phone}
+                                            onChange={(e) => setNewContact(prev => ({ ...prev, phone: e.target.value }))}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
                                             placeholder="(11) 99999-9999, +1 555 123-4567"
                                         />
@@ -1363,8 +1330,8 @@ export default function Contacts() {
                                         </label>
                                         <input
                                             type="text"
-                                            value={formData.position}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, position: e.target.value }))}
+                                            value={newContact.position}
+                                            onChange={(e) => setNewContact(prev => ({ ...prev, position: e.target.value }))}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
                                             placeholder="Ex: CEO, Diretor de Marketing"
                                         />
@@ -1376,8 +1343,8 @@ export default function Contacts() {
                                         </label>
                                         <input
                                             type="text"
-                                            value={formData.companyName}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
+                                            value={newContact.companyName}
+                                            onChange={(e) => setNewContact(prev => ({ ...prev, companyName: e.target.value }))}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
                                             placeholder="Nome da empresa"
                                             required
@@ -1390,8 +1357,8 @@ export default function Contacts() {
                                         </label>
                                         <input
                                             type="url"
-                                            value={formData.website}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
+                                            value={newContact.website}
+                                            onChange={(e) => setNewContact(prev => ({ ...prev, website: e.target.value }))}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
                                         />
                                     </div>
@@ -1403,8 +1370,8 @@ export default function Contacts() {
                                     </label>
                                     <input
                                         type="text"
-                                        value={formData.niche}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, niche: e.target.value }))}
+                                        value={newContact.niche}
+                                        onChange={(e) => setNewContact(prev => ({ ...prev, niche: e.target.value }))}
                                         className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
                                         placeholder="Ex: E-commerce, Saúde, Educação"
                                     />
@@ -1415,8 +1382,8 @@ export default function Contacts() {
                                         Pontos de Dor
                                     </label>
                                     <textarea
-                                        value={formData.painPoints}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, painPoints: e.target.value }))}
+                                        value={newContact.painPoints}
+                                        onChange={(e) => setNewContact(prev => ({ ...prev, painPoints: e.target.value }))}
                                         className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text h-24 resize-none"
                                         placeholder="Problemas que a empresa enfrenta..."
                                     />
@@ -1427,8 +1394,8 @@ export default function Contacts() {
                                         Interação Anterior
                                     </label>
                                     <textarea
-                                        value={formData.previousInteraction}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, previousInteraction: e.target.value }))}
+                                        value={newContact.previousInteraction}
+                                        onChange={(e) => setNewContact(prev => ({ ...prev, previousInteraction: e.target.value }))}
                                         className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text h-24 resize-none"
                                         placeholder="Histórico de contatos ou interações..."
                                     />
@@ -1439,8 +1406,8 @@ export default function Contacts() {
                                         Observações
                                     </label>
                                     <textarea
-                                        value={formData.notes}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                                        value={newContact.notes}
+                                        onChange={(e) => setNewContact(prev => ({ ...prev, notes: e.target.value }))}
                                         className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text h-24 resize-none"
                                         placeholder="Anotações gerais sobre o contato..."
                                     />
@@ -1448,8 +1415,8 @@ export default function Contacts() {
 
                                 <div className="flex items-center">
                                     <CustomCheckbox
-                                        checked={formData.isActive}
-                                        onChange={() => setFormData(prev => ({ ...prev, isActive: !prev.isActive }))}
+                                        checked={newContact.isActive}
+                                        onChange={() => setNewContact(prev => ({ ...prev, isActive: !prev.isActive }))}
                                         label="Contato ativo"
                                     />
                                 </div>
@@ -1476,19 +1443,19 @@ export default function Contacts() {
                 )}
 
                 {/* View/Edit Modal */}
-                {showViewModal && selectedContact && (
+                {showEditModal && editingContact && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                         <div className="bg-neutral-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden border border-neutral-700">
                             <div className="p-6 border-b border-neutral-700 flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     {/* Avatar */}
                                     <div className="flex-shrink-0">
-                                        <div className={`w-10 h-10 rounded-full ${getAvatarColor(formData.name || selectedContact.name)} flex items-center justify-center text-white font-semibold text-sm shadow-lg`}>
-                                            {getInitials(formData.name || selectedContact.name)}
+                                        <div className={`w-10 h-10 rounded-full ${getAvatarColor(editingContact.name || newContact.name)} flex items-center justify-center text-white font-semibold text-sm shadow-lg`}>
+                                            {getInitials(editingContact.name || newContact.name)}
                                         </div>
                                     </div>
                                     <h2 className="text-xl font-bold text-white">
-                                        {selectedContact.name}
+                                        {editingContact.name}
                                     </h2>
                                 </div>
                                 <button
@@ -1507,8 +1474,8 @@ export default function Contacts() {
                                         </label>
                                         <input
                                             type="text"
-                                            value={formData.name}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                                            value={newContact.name}
+                                            onChange={(e) => setNewContact(prev => ({ ...prev, name: e.target.value }))}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
                                             required
                                         />
@@ -1520,8 +1487,8 @@ export default function Contacts() {
                                         </label>
                                         <input
                                             type="email"
-                                            value={formData.email}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                                            value={newContact.email}
+                                            onChange={(e) => setNewContact(prev => ({ ...prev, email: e.target.value }))}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
                                             required
                                         />
@@ -1533,8 +1500,8 @@ export default function Contacts() {
                                         </label>
                                         <input
                                             type="tel"
-                                            value={formData.phone}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                                            value={newContact.phone}
+                                            onChange={(e) => setNewContact(prev => ({ ...prev, phone: e.target.value }))}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
                                             placeholder="(11) 99999-9999, +1 555 123-4567"
                                         />
@@ -1546,8 +1513,8 @@ export default function Contacts() {
                                         </label>
                                         <input
                                             type="text"
-                                            value={formData.position}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, position: e.target.value }))}
+                                            value={newContact.position}
+                                            onChange={(e) => setNewContact(prev => ({ ...prev, position: e.target.value }))}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
                                         />
                                     </div>
@@ -1558,8 +1525,8 @@ export default function Contacts() {
                                         </label>
                                         <input
                                             type="text"
-                                            value={formData.companyName}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
+                                            value={newContact.companyName}
+                                            onChange={(e) => setNewContact(prev => ({ ...prev, companyName: e.target.value }))}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
                                             required
                                         />
@@ -1571,8 +1538,8 @@ export default function Contacts() {
                                         </label>
                                         <input
                                             type="url"
-                                            value={formData.website}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
+                                            value={newContact.website}
+                                            onChange={(e) => setNewContact(prev => ({ ...prev, website: e.target.value }))}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
                                         />
                                     </div>
@@ -1584,8 +1551,8 @@ export default function Contacts() {
                                     </label>
                                     <input
                                         type="text"
-                                        value={formData.niche}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, niche: e.target.value }))}
+                                        value={newContact.niche}
+                                        onChange={(e) => setNewContact(prev => ({ ...prev, niche: e.target.value }))}
                                         className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
                                     />
                                 </div>
@@ -1595,8 +1562,8 @@ export default function Contacts() {
                                         Pontos de Dor
                                     </label>
                                     <textarea
-                                        value={formData.painPoints}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, painPoints: e.target.value }))}
+                                        value={newContact.painPoints}
+                                        onChange={(e) => setNewContact(prev => ({ ...prev, painPoints: e.target.value }))}
                                         className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text h-24 resize-none"
                                     />
                                 </div>
@@ -1606,8 +1573,8 @@ export default function Contacts() {
                                         Interação Anterior
                                     </label>
                                     <textarea
-                                        value={formData.previousInteraction}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, previousInteraction: e.target.value }))}
+                                        value={newContact.previousInteraction}
+                                        onChange={(e) => setNewContact(prev => ({ ...prev, previousInteraction: e.target.value }))}
                                         className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text h-24 resize-none"
                                     />
                                 </div>
@@ -1617,16 +1584,16 @@ export default function Contacts() {
                                         Observações
                                     </label>
                                     <textarea
-                                        value={formData.notes}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                                        value={newContact.notes}
+                                        onChange={(e) => setNewContact(prev => ({ ...prev, notes: e.target.value }))}
                                         className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text h-24 resize-none"
                                     />
                                 </div>
 
                                 <div className="flex items-center">
                                     <CustomCheckbox
-                                        checked={formData.isActive}
-                                        onChange={() => setFormData(prev => ({ ...prev, isActive: !prev.isActive }))}
+                                        checked={newContact.isActive}
+                                        onChange={() => setNewContact(prev => ({ ...prev, isActive: !prev.isActive }))}
                                         label="Contato ativo"
                                     />
                                 </div>

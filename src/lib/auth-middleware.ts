@@ -42,7 +42,7 @@ export function verifyTokenSimple(token: string): AuthUser | null {
             name: payload.name,
             role: payload.role,
         };
-    } catch (error) {
+    } catch {
         // Falha silenciosa no middleware
         return null;
     }

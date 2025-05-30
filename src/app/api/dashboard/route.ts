@@ -15,17 +15,11 @@ export async function GET(request: NextRequest) {
         // Buscar dados básicos
         const [
             totalContacts,
-            emailStats,
             recentEmails,
             emailsByStatus,
         ] = await Promise.all([
             // Contatos
             prisma.contact.count(),
-
-            // Estatísticas de emails
-            prisma.emailSent.aggregate({
-                _count: { id: true },
-            }),
 
             // Emails recentes
             prisma.emailSent.findMany({

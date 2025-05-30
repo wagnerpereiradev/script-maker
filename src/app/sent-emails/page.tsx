@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import MainLayout from '@/components/MainLayout';
-import { Search, Filter, Mail, Calendar, User, Building, Eye, X, Check, Clock, AlertCircle, Send, ExternalLink, TrendingUp, Activity, Zap, ChevronRight } from 'lucide-react';
+import { Search, Filter, Mail, Calendar, User, Building, Eye, X, Check, Clock, AlertCircle, Send, ExternalLink, TrendingUp, Activity, ChevronRight } from 'lucide-react';
 
 interface SentEmail {
     id: string;
@@ -336,7 +336,6 @@ export default function SentEmails() {
     const [status, setStatus] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const [total, setTotal] = useState(0);
     const [globalStats, setGlobalStats] = useState({
         total: 0,
         sent: 0,
@@ -369,7 +368,6 @@ export default function SentEmails() {
                 const data = await response.json();
                 setEmails(data.emails);
                 setTotalPages(data.pagination.pages);
-                setTotal(data.pagination.total);
                 setGlobalStats(data.stats);
             } else {
                 setMessage({ type: 'error', text: 'Erro ao carregar emails enviados' });
@@ -403,21 +401,6 @@ export default function SentEmails() {
         setSelectedEmail(null);
     };
 
-    // Status functions
-    const getStatusLabel = (emailStatus: string) => {
-        const labels = {
-            pending: 'Pendente',
-            sending: 'Enviando',
-            sent: 'Enviado',
-            delivered: 'Entregue',
-            opened: 'Aberto',
-            clicked: 'Clicado',
-            bounced: 'Rejeitado',
-            failed: 'Falhou',
-        };
-        return labels[emailStatus as keyof typeof labels] || emailStatus;
-    };
-
     const getStatusColor = (emailStatus: string) => {
         const colors = {
             pending: 'bg-yellow-900/50 text-yellow-300 border-yellow-700',
@@ -430,20 +413,6 @@ export default function SentEmails() {
             failed: 'bg-red-900/50 text-red-300 border-red-700',
         };
         return colors[emailStatus as keyof typeof colors] || 'bg-neutral-800 text-neutral-300 border-neutral-600';
-    };
-
-    const getStatusIcon = (emailStatus: string) => {
-        const icons = {
-            pending: Clock,
-            sending: Send,
-            sent: Check,
-            delivered: Check,
-            opened: Eye,
-            clicked: ExternalLink,
-            bounced: AlertCircle,
-            failed: X,
-        };
-        return icons[emailStatus as keyof typeof icons] || Clock;
     };
 
     return (

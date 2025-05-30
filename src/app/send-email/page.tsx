@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import MainLayout from '@/components/MainLayout';
-import { Search, User, FileText, Mail, Eye, Send, ArrowLeft, ArrowRight, Check, X, Loader2, AlertCircle, ChevronDown, ChevronUp, Building2, Phone, MapPin, Power, PowerOff, Maximize2, Monitor } from 'lucide-react';
+import { Search, User, FileText, Mail, Eye, Send, ArrowLeft, ArrowRight, Check, X, Loader2, AlertCircle, Building2, Phone, MapPin, Power, PowerOff, Maximize2, Monitor } from 'lucide-react';
 
 interface Contact {
     id: string;

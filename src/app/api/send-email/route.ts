@@ -167,42 +167,45 @@ export async function POST(request: NextRequest) {
                 },
             });
 
-        } catch (emailError: any) {
+        } catch (emailError: unknown) {
             console.error('Erro ao enviar email:', emailError);
 
             // Determinar tipo de erro e status apropriado
             let errorStatus = 'failed';
             let errorMessage = 'Erro desconhecido';
 
-            if (emailError.code) {
-                switch (emailError.code) {
+            if (emailError && typeof emailError === 'object' && 'code' in emailError) {
+                const error = emailError as { code: string; message: string; response?: string; responseCode?: number };
+
+                switch (error.code) {
                     case 'EENVELOPE':
                     case 'EMESSAGE':
                         errorStatus = 'bounced';
-                        errorMessage = `Email rejeitado: ${emailError.message}`;
+                        errorMessage = `Email rejeitado: ${error.message}`;
                         break;
                     case 'ECONNECTION':
                     case 'EAUTH':
                         errorStatus = 'failed';
-                        errorMessage = `Erro de conexão/autenticação: ${emailError.message}`;
+                        errorMessage = `Erro de conexão/autenticação: ${error.message}`;
                         break;
                     case 'ETIMEDOUT':
                         errorStatus = 'failed';
-                        errorMessage = `Timeout na conexão: ${emailError.message}`;
+                        errorMessage = `Timeout na conexão: ${error.message}`;
                         break;
                     default:
-                        errorMessage = emailError.message || 'Erro no envio';
+                        errorMessage = error.message || 'Erro no envio';
                 }
-            } else if (emailError.response) {
+            } else if (emailError && typeof emailError === 'object' && 'response' in emailError) {
+                const error = emailError as { response: string; responseCode?: number };
                 // Erros SMTP específicos
-                const responseCode = emailError.responseCode;
-                if (responseCode >= 500 && responseCode < 600) {
+                const responseCode = error.responseCode;
+                if (responseCode && responseCode >= 500 && responseCode < 600) {
                     errorStatus = 'bounced';
-                    errorMessage = `Email rejeitado pelo servidor: ${emailError.response}`;
+                    errorMessage = `Email rejeitado pelo servidor: ${error.response}`;
                 } else {
-                    errorMessage = `Erro SMTP: ${emailError.response}`;
+                    errorMessage = `Erro SMTP: ${error.response}`;
                 }
-            } else {
+            } else if (emailError instanceof Error) {
                 errorMessage = emailError.message || 'Erro desconhecido no envio';
             }
 
@@ -210,7 +213,7 @@ export async function POST(request: NextRequest) {
             await prisma.emailSent.update({
                 where: { id: emailRecord.id },
                 data: {
-                    status: errorStatus as any,
+                    status: errorStatus as 'failed' | 'bounced',
                     errorMessage: errorMessage,
                     bounced: errorStatus === 'bounced',
                 },

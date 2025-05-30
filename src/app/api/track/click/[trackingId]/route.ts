@@ -5,10 +5,10 @@ const prisma = new PrismaClient();
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { trackingId: string } }
+    { params }: { params: Promise<{ trackingId: string }> }
 ) {
     try {
-        const { trackingId } = params;
+        const { trackingId } = await params;
         const { searchParams } = new URL(request.url);
         const originalUrl = searchParams.get('url');
 
@@ -30,9 +30,15 @@ export async function GET(
         }
 
         // Atualizar status para clicado
-        const updateData: any = {
+        const updateData: {
+            clicked: boolean;
+            status: 'clicked';
+            opened?: boolean;
+            openedAt?: Date;
+            clickedAt?: Date;
+        } = {
             clicked: true,
-            status: 'clicked', // Atualizar status para clicked
+            status: 'clicked' as const,
         };
 
         // Se ainda não foi aberto, marcar como aberto também
@@ -54,7 +60,7 @@ export async function GET(
         // Redirecionar para a URL original
         return NextResponse.redirect(decodeURIComponent(originalUrl), 302);
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('Erro no tracking de clique:', error);
 
         // Em caso de erro, tentar redirecionar para a URL original se possível
