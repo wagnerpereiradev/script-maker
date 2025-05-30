@@ -34,7 +34,7 @@ interface DashboardData {
       clicked: boolean;
       contact: {
         companyName: string;
-      };
+      } | null;
     }>;
     byStatus: Record<string, number>;
     dailyStats: Array<{
@@ -169,7 +169,7 @@ const RecentActivity = ({ emails }: { emails: DashboardData['emails']['recent'] 
                 <div className="flex-1 min-w-0">
                   <h4 className="text-white text-sm font-medium truncate">{email.subject}</h4>
                   <p className="text-neutral-400 text-xs">
-                    Para: {email.toName} • {email.contact.companyName}
+                    Para: {email.toName} • {email.contact?.companyName || 'Contato removido'}
                   </p>
                 </div>
                 <div className="text-right">
