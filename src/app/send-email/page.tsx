@@ -1122,91 +1122,77 @@ export default function SendEmail() {
                                         Voltar aos Scripts
                                     </button>
 
-                                    {/* Componente de Progresso de Envio - Redesenhado */}
+                                    {/* Componente de Progresso de Envio - Ultra Compacto */}
                                     {sending && (
                                         <div className="flex-1 mx-6">
-                                            <div className="bg-gradient-to-br from-neutral-800 to-neutral-900 rounded-xl p-5 border border-neutral-700/50 shadow-xl backdrop-blur-sm">
-                                                {/* Header compacto */}
-                                                <div className="flex items-center justify-between mb-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="relative">
-                                                            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                                                                <Send className="w-4 h-4 text-white" />
-                                                            </div>
-                                                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full flex items-center justify-center">
-                                                                <Loader2 className="w-2 h-2 animate-spin text-neutral-900" />
-                                                            </div>
+                                            <div className="bg-gradient-to-r from-neutral-800 to-neutral-900 rounded-lg px-4 py-2.5 border border-neutral-700/50 shadow-lg h-11 flex items-center gap-4">
+                                                {/* Ícone + Status */}
+                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                    <div className="relative">
+                                                        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                                                            <Send className="w-3 h-3 text-white" />
                                                         </div>
-                                                        <div>
-                                                            <h3 className="text-white font-semibold text-sm">Enviando Emails</h3>
-                                                            <p className="text-neutral-400 text-xs">
-                                                                {sendingProgress.sent + sendingProgress.failed} de {sendingProgress.total} emails
-                                                            </p>
+                                                        <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full">
+                                                            <Loader2 className="w-1.5 h-1.5 animate-spin text-neutral-900" />
                                                         </div>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <div className="text-2xl font-bold text-white">
+                                                    <div className="text-xs">
+                                                        <span className="text-white font-medium">Enviando</span>
+                                                        {sendingProgress.totalBatches > 1 && (
+                                                            <span className="text-neutral-400 ml-1">
+                                                                {sendingProgress.currentBatch}/{sendingProgress.totalBatches}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Barra de Progresso Compacta */}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="flex-1 bg-neutral-700 rounded-full h-2 overflow-hidden">
+                                                            <div className="flex h-full">
+                                                                <div
+                                                                    className="bg-gradient-to-r from-green-500 to-green-600 transition-all duration-300 ease-out"
+                                                                    style={{
+                                                                        width: `${sendingProgress.total > 0 ? (sendingProgress.sent / sendingProgress.total) * 100 : 0}%`
+                                                                    }}
+                                                                />
+                                                                {sendingProgress.failed > 0 && (
+                                                                    <div
+                                                                        className="bg-gradient-to-r from-red-500 to-red-600 transition-all duration-300 ease-out"
+                                                                        style={{
+                                                                            width: `${sendingProgress.total > 0 ? (sendingProgress.failed / sendingProgress.total) * 100 : 0}%`
+                                                                        }}
+                                                                    />
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-xs font-bold text-white min-w-[2rem] text-right">
                                                             {sendingProgress.total > 0
                                                                 ? Math.round(((sendingProgress.sent + sendingProgress.failed) / sendingProgress.total) * 100)
                                                                 : 0
                                                             }%
                                                         </div>
-                                                        {sendingProgress.totalBatches > 1 && (
-                                                            <div className="text-xs text-neutral-400">
-                                                                Lote {sendingProgress.currentBatch}/{sendingProgress.totalBatches}
-                                                            </div>
-                                                        )}
                                                     </div>
                                                 </div>
 
-                                                {/* Barra de Progresso Elegante */}
-                                                <div className="mb-4">
-                                                    <div className="w-full bg-neutral-700 rounded-full h-3 overflow-hidden shadow-inner">
-                                                        <div className="flex h-full">
-                                                            {/* Enviados com sucesso */}
-                                                            <div
-                                                                className="bg-gradient-to-r from-green-500 to-green-600 transition-all duration-500 ease-out shadow-sm"
-                                                                style={{
-                                                                    width: `${sendingProgress.total > 0 ? (sendingProgress.sent / sendingProgress.total) * 100 : 0}%`
-                                                                }}
-                                                            />
-                                                            {/* Falharam */}
-                                                            {sendingProgress.failed > 0 && (
-                                                                <div
-                                                                    className="bg-gradient-to-r from-red-500 to-red-600 transition-all duration-500 ease-out"
-                                                                    style={{
-                                                                        width: `${sendingProgress.total > 0 ? (sendingProgress.failed / sendingProgress.total) * 100 : 0}%`
-                                                                    }}
-                                                                />
-                                                            )}
+                                                {/* Estatísticas Ultra Compactas */}
+                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                    <div className="text-xs text-neutral-300">
+                                                        {sendingProgress.sent + sendingProgress.failed}/{sendingProgress.total}
+                                                    </div>
+                                                    {sendingProgress.sent > 0 && (
+                                                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-green-900/40 rounded text-xs">
+                                                            <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
+                                                            <span className="text-green-300 font-medium">{sendingProgress.sent}</span>
                                                         </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Status e Estatísticas - Layout horizontal compacto */}
-                                                <div className="flex items-center justify-between">
-                                                    {/* Status atual */}
-                                                    <div className="flex-1 min-w-0 mr-4">
-                                                        <p className="text-neutral-300 text-xs truncate font-medium">
-                                                            {sendingProgress.currentEmail}
-                                                        </p>
-                                                    </div>
-
-                                                    {/* Estatísticas compactas */}
-                                                    <div className="flex items-center gap-4 text-xs">
-                                                        {sendingProgress.sent > 0 && (
-                                                            <div className="flex items-center gap-1.5 px-2 py-1 bg-green-900/30 rounded-full border border-green-700/30">
-                                                                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                                                                <span className="text-green-300 font-medium">{sendingProgress.sent}</span>
-                                                            </div>
-                                                        )}
-                                                        {sendingProgress.failed > 0 && (
-                                                            <div className="flex items-center gap-1.5 px-2 py-1 bg-red-900/30 rounded-full border border-red-700/30">
-                                                                <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                                                                <span className="text-red-300 font-medium">{sendingProgress.failed}</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                                    )}
+                                                    {sendingProgress.failed > 0 && (
+                                                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-900/40 rounded text-xs">
+                                                            <div className="w-1.5 h-1.5 bg-red-400 rounded-full"></div>
+                                                            <span className="text-red-300 font-medium">{sendingProgress.failed}</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
