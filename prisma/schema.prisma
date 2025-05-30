@@ -136,6 +136,22 @@ model EmailTemplate {
   @@map("email_templates")
 }
 
+model MailingList {
+  id          String    @id @default(cuid())
+  name        String    @unique @db.VarChar(100)
+  description String?   @db.Text
+  color       String    @default("#3b82f6") @db.VarChar(20)
+  
+  // Relações
+  contacts    Contact[]
+  
+  // Metadados
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@map("mailing_lists")
+}
+
 model Contact {
   id                String   @id @default(cuid())
   
@@ -157,6 +173,10 @@ model Contact {
   
   // Status do contato
   isActive          Boolean  @default(true)
+  
+  // Relação com lista de e-mail
+  mailingListId     String?
+  mailingList       MailingList? @relation(fields: [mailingListId], references: [id])
   
   // Relações
   scripts           EmailScript[]

@@ -59,6 +59,12 @@ interface DashboardData {
     openRate: number;
     clickRate: number;
   };
+  trends?: {
+    emailsTrend: string;
+    openRateTrend: string;
+    clickRateTrend: string;
+    contactsTrend: string;
+  };
 }
 
 // Componente de Métrica Principal
@@ -255,8 +261,8 @@ export default function Dashboard() {
             value={data?.emails.total || 0}
             icon={Mail}
             color="blue"
-            trend="up"
-            trendValue="+12%"
+            trend={data?.trends?.emailsTrend?.startsWith('+') ? 'up' : 'down'}
+            trendValue={data?.trends?.emailsTrend || '0%'}
             subtitle="Últimos 30 dias"
             loading={loading}
           />
@@ -265,8 +271,8 @@ export default function Dashboard() {
             value={data?.performance.openRate.toFixed(1) + '%' || '0%'}
             icon={Eye}
             color="purple"
-            trend="up"
-            trendValue="+5.2%"
+            trend={data?.trends?.openRateTrend?.startsWith('+') ? 'up' : 'down'}
+            trendValue={data?.trends?.openRateTrend || '0%'}
             subtitle="Média da indústria: 22%"
             loading={loading}
           />
@@ -275,8 +281,8 @@ export default function Dashboard() {
             value={data?.performance.clickRate.toFixed(1) + '%' || '0%'}
             icon={ExternalLink}
             color="green"
-            trend="up"
-            trendValue="+2.8%"
+            trend={data?.trends?.clickRateTrend?.startsWith('+') ? 'up' : 'down'}
+            trendValue={data?.trends?.clickRateTrend || '0%'}
             subtitle="Média da indústria: 3.5%"
             loading={loading}
           />
@@ -285,8 +291,8 @@ export default function Dashboard() {
             value={data?.contacts.total || 0}
             icon={Users}
             color="orange"
-            trend="up"
-            trendValue="+8"
+            trend={data?.trends?.contactsTrend?.startsWith('+') ? 'up' : 'down'}
+            trendValue={data?.trends?.contactsTrend || '0'}
             subtitle="Este mês"
             loading={loading}
           />

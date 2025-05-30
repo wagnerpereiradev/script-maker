@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
         const limit = parseInt(searchParams.get('limit') || '10');
         const search = searchParams.get('search') || '';
         const isActive = searchParams.get('isActive');
+        const listId = searchParams.get('list'); // Filtro por lista
 
         const offset = (page - 1) * limit;
 
@@ -38,10 +39,24 @@ export async function GET(request: NextRequest) {
             where.isActive = isActive === 'true';
         }
 
+        // Filtro por lista de e-mail
+        if (listId) {
+            where.mailingListId = listId;
+        }
+
         // Buscar contatos com contagem total
         const [contacts, total] = await Promise.all([
             prisma.contact.findMany({
                 where,
+                include: {
+                    mailingList: {
+                        select: {
+                            id: true,
+                            name: true,
+                            color: true
+                        }
+                    }
+                },
                 orderBy: { updatedAt: 'desc' },
                 skip: offset,
                 take: limit,
@@ -89,6 +104,7 @@ export async function POST(request: NextRequest) {
             previousInteraction,
             notes,
             isActive = true,
+            mailingListId,
         } = body;
 
         // Validações básicas
@@ -124,6 +140,7 @@ export async function POST(request: NextRequest) {
                 previousInteraction: previousInteraction?.trim() || null,
                 notes: notes?.trim() || null,
                 isActive,
+                mailingListId,
             },
         });
 

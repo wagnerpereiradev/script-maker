@@ -2,7 +2,14 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import MainLayout from '@/components/MainLayout';
-import { Search, Filter, Users, Calendar, Eye, Trash2, Plus, Edit3, Power, PowerOff, Check, X, Phone, Mail, Globe, Building2, User, MessageSquare, Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import { Search, Filter, Users, Calendar, Eye, Trash2, Plus, Edit3, Power, PowerOff, Check, X, Phone, Mail, Globe, Building2, User, MessageSquare, Upload, FileText, AlertCircle, CheckCircle, List } from 'lucide-react';
+import Link from 'next/link';
+
+interface MailingList {
+    id: string;
+    name: string;
+    color: string;
+}
 
 interface Contact {
     id: string;
@@ -17,6 +24,8 @@ interface Contact {
     previousInteraction?: string;
     notes?: string;
     isActive: boolean;
+    mailingListId?: string;
+    mailingList?: MailingList;
     createdAt: string;
     updatedAt: string;
 }
@@ -67,6 +76,8 @@ export default function Contacts() {
     const [totalPages, setTotalPages] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [listFilter, setListFilter] = useState<string>('all');
+    const [mailingLists, setMailingLists] = useState<MailingList[]>([]);
     const [showNewContactModal, setShowNewContactModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingContact, setEditingContact] = useState<Contact | null>(null);
@@ -85,6 +96,7 @@ export default function Contacts() {
         previousInteraction: '',
         notes: '',
         isActive: true,
+        mailingListId: undefined,
     });
 
     // Modal states
@@ -298,6 +310,7 @@ export default function Contacts() {
                 limit: '999999',
                 ...(searchTerm && { search: searchTerm }),
                 ...(statusFilter !== 'all' && { isActive: (statusFilter === 'active').toString() }),
+                ...(listFilter !== 'all' && { list: listFilter }),
             });
 
             const response = await fetch(`/api/contacts?${params}`);
@@ -314,11 +327,24 @@ export default function Contacts() {
         } finally {
             setLoading(false);
         }
-    }, [currentPage, searchTerm, statusFilter]);
+    }, [currentPage, searchTerm, statusFilter, listFilter]);
+
+    const fetchMailingLists = useCallback(async () => {
+        try {
+            const response = await fetch('/api/mailing-lists');
+            if (response.ok) {
+                const data = await response.json();
+                setMailingLists(data.mailingLists);
+            }
+        } catch (error) {
+            console.error('Erro ao buscar listas:', error);
+        }
+    }, []);
 
     useEffect(() => {
         fetchContacts();
-    }, [fetchContacts]);
+        fetchMailingLists();
+    }, [fetchContacts, fetchMailingLists]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -333,6 +359,23 @@ export default function Contacts() {
                 const contact = await response.json();
                 setSelectedContact(contact);
                 setEditingContact(contact);
+
+                // Carregar dados do contato no formulário de edição
+                setNewContact({
+                    name: contact.name,
+                    email: contact.email,
+                    phone: contact.phone || '',
+                    position: contact.position || '',
+                    companyName: contact.companyName,
+                    website: contact.website || '',
+                    niche: contact.niche || '',
+                    painPoints: contact.painPoints || '',
+                    previousInteraction: contact.previousInteraction || '',
+                    notes: contact.notes || '',
+                    isActive: contact.isActive,
+                    mailingListId: contact.mailingListId || undefined,
+                });
+
                 setShowEditModal(true);
             } else {
                 setMessage({ type: 'error', text: 'Erro ao carregar contato' });
@@ -355,6 +398,7 @@ export default function Contacts() {
             previousInteraction: '',
             notes: '',
             isActive: true,
+            mailingListId: undefined,
         });
         setShowNewContactModal(true);
     };
@@ -731,12 +775,39 @@ export default function Contacts() {
                     {/* Header */}
                     <div className="mb-8 flex items-center justify-between">
                         <div>
+                            {/* Submenu */}
+                            <nav className="flex items-center gap-4 mb-4">
+                                <Link
+                                    href="/contacts"
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${!listFilter || listFilter === 'all'
+                                        ? 'bg-white text-black'
+                                        : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                                        }`}
+                                >
+                                    <Users className="h-4 w-4" />
+                                    Todos os Contatos
+                                </Link>
+                                <Link
+                                    href="/contacts/lists"
+                                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+                                >
+                                    <List className="h-4 w-4" />
+                                    Listas de E-mail
+                                </Link>
+                            </nav>
+
                             <h1 className="text-3xl font-bold text-white mb-2">
-                                Contatos
+                                {listFilter !== 'all' && mailingLists.find(l => l.id === listFilter)
+                                    ? `Lista: ${mailingLists.find(l => l.id === listFilter)?.name}`
+                                    : 'Contatos'
+                                }
                             </h1>
                             <div className="flex items-center gap-4">
                                 <p className="text-neutral-400">
-                                    Gerencie seus contatos e prospects
+                                    {listFilter !== 'all' && mailingLists.find(l => l.id === listFilter)
+                                        ? `Contatos da lista ${mailingLists.find(l => l.id === listFilter)?.name}`
+                                        : 'Gerencie seus contatos e prospects'
+                                    }
                                 </p>
                                 <div className="flex items-center gap-2 px-3 py-1 bg-neutral-800 rounded-full border border-neutral-700">
                                     <Users className="h-4 w-4 text-neutral-400" />
@@ -796,6 +867,18 @@ export default function Contacts() {
                                 </div>
                             </div>
                             <div className="flex gap-3">
+                                <select
+                                    className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-white cursor-pointer"
+                                    value={listFilter}
+                                    onChange={(e) => setListFilter(e.target.value)}
+                                >
+                                    <option value="all">Todas as listas</option>
+                                    {mailingLists.map(list => (
+                                        <option key={list.id} value={list.id}>
+                                            {list.name}
+                                        </option>
+                                    ))}
+                                </select>
                                 <select
                                     className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-white cursor-pointer"
                                     value={statusFilter}
@@ -914,7 +997,7 @@ export default function Contacts() {
                                                         </div>
                                                     </div>
 
-                                                    {/* Linha 2: Empresa + Email */}
+                                                    {/* Linha 2: Empresa + Email + Lista */}
                                                     <div className="flex items-center gap-4 mb-1">
                                                         <div className="flex items-center gap-1.5 text-sm">
                                                             <Building2 className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
@@ -924,6 +1007,17 @@ export default function Contacts() {
                                                             <Mail className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
                                                             <span className="truncate">{contact.email}</span>
                                                         </div>
+                                                        {contact.mailingList && (
+                                                            <div className="flex items-center gap-1.5 text-sm">
+                                                                <div
+                                                                    className="w-2 h-2 rounded-full flex-shrink-0"
+                                                                    style={{ backgroundColor: contact.mailingList.color }}
+                                                                />
+                                                                <span className="truncate text-neutral-400 text-xs">
+                                                                    {contact.mailingList.name}
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                     </div>
 
                                                     {/* Linha 3: Informações adicionais */}
@@ -1333,7 +1427,6 @@ export default function Contacts() {
                                             value={newContact.position}
                                             onChange={(e) => setNewContact(prev => ({ ...prev, position: e.target.value }))}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
-                                            placeholder="Ex: CEO, Diretor de Marketing"
                                         />
                                     </div>
 
@@ -1361,6 +1454,24 @@ export default function Contacts() {
                                             onChange={(e) => setNewContact(prev => ({ ...prev, website: e.target.value }))}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
                                         />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-white mb-2">
+                                            Lista de E-mail
+                                        </label>
+                                        <select
+                                            value={newContact.mailingListId || ''}
+                                            onChange={(e) => setNewContact(prev => ({ ...prev, mailingListId: e.target.value || undefined }))}
+                                            className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-white cursor-pointer"
+                                        >
+                                            <option value="">Nenhuma lista</option>
+                                            {mailingLists.map(list => (
+                                                <option key={list.id} value={list.id}>
+                                                    {list.name}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
 
@@ -1542,6 +1653,24 @@ export default function Contacts() {
                                             onChange={(e) => setNewContact(prev => ({ ...prev, website: e.target.value }))}
                                             className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-white cursor-text"
                                         />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-white mb-2">
+                                            Lista de E-mail
+                                        </label>
+                                        <select
+                                            value={newContact.mailingListId || ''}
+                                            onChange={(e) => setNewContact(prev => ({ ...prev, mailingListId: e.target.value || undefined }))}
+                                            className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-white cursor-pointer"
+                                        >
+                                            <option value="">Nenhuma lista</option>
+                                            {mailingLists.map(list => (
+                                                <option key={list.id} value={list.id}>
+                                                    {list.name}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
 
