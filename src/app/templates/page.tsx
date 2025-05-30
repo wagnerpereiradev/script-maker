@@ -1431,7 +1431,7 @@ export default function Templates() {
                                         <p className="text-sm text-neutral-400">Visualização em tempo real</p>
                                     </div>
 
-                                    <div className="flex-1 p-6 overflow-y-auto">
+                                    <div className="flex-1 overflow-y-auto">
                                         <EmailPreview
                                             content={formData.htmlContent}
                                             subject={formData.subject}
@@ -1692,7 +1692,7 @@ export default function Templates() {
                                         <p className="text-sm text-neutral-400">Visualização em tempo real</p>
                                     </div>
 
-                                    <div className="flex-1 p-6 overflow-y-auto">
+                                    <div className="flex-1 overflow-y-auto">
                                         <EmailPreview
                                             content={formData.htmlContent}
                                             subject={formData.subject}
