@@ -31,7 +31,7 @@ interface SentEmail {
         name: string;
         email: string;
         companyName: string;
-    };
+    } | null;
     script?: {
         subject: string;
         emailType: string;
@@ -555,7 +555,7 @@ export default function SentEmails() {
                                                                 <User className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
                                                                 <span className="truncate">{email.toName} ({email.toEmail})</span>
                                                             </div>
-                                                            {email.contact.companyName && (
+                                                            {email.contact && email.contact.companyName && (
                                                                 <div className="flex items-center gap-1.5 text-sm text-neutral-300">
                                                                     <Building className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
                                                                     <span className="truncate">{email.contact.companyName}</span>
@@ -691,9 +691,15 @@ export default function SentEmails() {
                                         </h2>
                                         <div className="flex items-center gap-2">
                                             <StatusBadge email={selectedEmail} />
-                                            <span className="text-neutral-400 text-sm">
-                                                • {selectedEmail.toName} ({selectedEmail.contact.companyName})
-                                            </span>
+                                            {selectedEmail.contact ? (
+                                                <span className="text-neutral-400 text-sm">
+                                                    • {selectedEmail.toName} ({selectedEmail.contact.companyName})
+                                                </span>
+                                            ) : (
+                                                <span className="text-neutral-400 text-sm">
+                                                    • {selectedEmail.toName} (Contato removido)
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
