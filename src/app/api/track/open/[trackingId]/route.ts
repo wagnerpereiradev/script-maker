@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient, EmailStatus } from '@/generated/prisma';
-import { isValidEmailClient, isValidReferrer, getNextStatus } from '@/lib/email-tracking';
+import { EmailStatus } from '@/generated/prisma';
+import { prisma } from '@/lib/prisma';
+import { isValidEmailClient, isValidReferrer, getNextStatus, validateTrackingToken, getOptimizedTrackingPixel } from '@/lib/email-tracking';
 
-const prisma = new PrismaClient();
+// Cache para IPs já processados (evitar múltiplos opens do mesmo IP)
+const processedIPs = new Map<string, Set<string>>();
 
 export async function GET(
     request: NextRequest,
@@ -10,9 +12,21 @@ export async function GET(
 ) {
     try {
         const { trackingId } = await params;
+        const { searchParams } = new URL(request.url);
+        const token = searchParams.get('t');
 
         if (!trackingId) {
-            return new NextResponse('Tracking ID não fornecido', { status: 400 });
+            return getOptimizedTrackingPixelResponse(trackingId);
+        }
+
+        // Validar token HMAC
+        if (!token || !validateTrackingToken(trackingId, token)) {
+            console.log('Open tracking blocked - invalid token:', {
+                trackingId,
+                token,
+                timestamp: new Date().toISOString()
+            });
+            return getOptimizedTrackingPixelResponse(trackingId);
         }
 
         // Obter informações do request para validação
@@ -20,17 +34,32 @@ export async function GET(
         const referrer = request.headers.get('referer') || request.headers.get('referrer');
         const forwardedFor = request.headers.get('x-forwarded-for');
         const realIp = request.headers.get('x-real-ip');
+        const clientIp = forwardedFor?.split(',')[0] || realIp || 'unknown';
 
         // Log para debugging (remover em produção se necessário)
         console.log('Open tracking attempt:', {
             trackingId,
             userAgent,
             referrer,
-            ip: forwardedFor || realIp,
+            ip: clientIp,
             timestamp: new Date().toISOString()
         });
 
-        // Validações de segurança
+        // Verificar se já processamos este IP para este trackingId (anti-duplicação)
+        if (!processedIPs.has(trackingId)) {
+            processedIPs.set(trackingId, new Set());
+        }
+
+        const trackingSet = processedIPs.get(trackingId)!;
+        if (trackingSet.has(clientIp)) {
+            console.log('Open tracking skipped - IP already processed:', {
+                trackingId,
+                ip: clientIp
+            });
+            return getOptimizedTrackingPixelResponse(trackingId);
+        }
+
+        // Validações de segurança melhoradas
         const isValidClient = isValidEmailClient(userAgent);
         const isValidRef = isValidReferrer(referrer);
 
@@ -41,7 +70,7 @@ export async function GET(
 
         if (!email) {
             // Ainda retornar pixel mesmo se email não encontrado
-            return getTrackingPixelResponse();
+            return getOptimizedTrackingPixelResponse(trackingId);
         }
 
         // Só atualizar se passar nas validações e ainda não foi marcado como aberto
@@ -59,12 +88,16 @@ export async function GET(
                     },
                 });
 
+                // Adicionar IP ao conjunto de processados
+                trackingSet.add(clientIp);
+
                 console.log('Email marked as opened:', {
                     emailId: email.id,
                     toEmail: email.toEmail,
                     previousStatus: email.status,
                     newStatus: nextStatus,
                     userAgent,
+                    ip: clientIp,
                     timestamp: new Date().toISOString()
                 });
             }
@@ -74,39 +107,59 @@ export async function GET(
                 isValidClient,
                 isValidRef,
                 userAgent,
-                referrer
+                referrer,
+                ip: clientIp
+            });
+        } else if (email.opened) {
+            console.log('Open tracking skipped - already marked as opened:', {
+                trackingId,
+                openedAt: email.openedAt
             });
         }
 
-        return getTrackingPixelResponse();
+        return getOptimizedTrackingPixelResponse(trackingId);
 
     } catch (error) {
         console.error('Erro no tracking de abertura:', error);
         // Sempre retornar pixel mesmo em caso de erro
-        return getTrackingPixelResponse();
+        const { trackingId } = await params;
+        return getOptimizedTrackingPixelResponse(trackingId);
     }
 }
 
 /**
- * Retorna o pixel de tracking transparente
+ * Retorna o pixel de tracking transparente otimizado com headers melhorados
  */
-function getTrackingPixelResponse(): NextResponse {
-    // Pixel transparente 1x1 PNG otimizado
-    const pixelBuffer = Buffer.from(
-        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-        'base64'
-    );
+function getOptimizedTrackingPixelResponse(trackingId?: string): NextResponse {
+    const pixelBuffer = getOptimizedTrackingPixel();
 
-    return new NextResponse(pixelBuffer, {
+    const response = new NextResponse(pixelBuffer, {
         status: 200,
         headers: {
-            'Content-Type': 'image/png',
+            'Content-Type': 'image/gif',
             'Content-Length': pixelBuffer.length.toString(),
             'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
             'Pragma': 'no-cache',
             'Expires': '0',
             'X-Robots-Tag': 'noindex, nofollow',
             'Access-Control-Allow-Origin': '*',
+            'Vary': 'User-Agent', // Diferenciar por cliente
         },
     });
-} 
+
+    // Adicionar ETag para forçar revalidação
+    if (trackingId) {
+        response.headers.set('ETag', `"${trackingId}"`);
+    }
+
+    return response;
+}
+
+// Limpeza periódica do cache de IPs (executar a cada hora)
+setInterval(() => {
+    // Limpar entradas antigas (simplificado - em produção usar Redis ou similar)
+    if (processedIPs.size > 1000) {
+        processedIPs.clear();
+        console.log('Cleaned up processed IPs cache');
+    }
+}, 60 * 60 * 1000); // 1 hora 

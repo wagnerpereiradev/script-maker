@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient, EmailStatus } from '@/generated/prisma';
-import { isValidEmailClient, isValidReferrer, getNextStatus } from '@/lib/email-tracking';
-
-const prisma = new PrismaClient();
+import { EmailStatus } from '@/generated/prisma';
+import { prisma } from '@/lib/prisma';
+import { isValidEmailClient, isValidReferrer, getNextStatus, validateTrackingToken } from '@/lib/email-tracking';
 
 export async function GET(
     request: NextRequest,
@@ -12,6 +11,7 @@ export async function GET(
         const { trackingId } = await params;
         const { searchParams } = new URL(request.url);
         const originalUrl = searchParams.get('url');
+        const token = searchParams.get('t');
 
         if (!trackingId) {
             return NextResponse.json({ error: 'Tracking ID não fornecido' }, { status: 400 });
@@ -21,11 +21,24 @@ export async function GET(
             return NextResponse.json({ error: 'URL original não fornecida' }, { status: 400 });
         }
 
+        // Validar token HMAC
+        if (!token || !validateTrackingToken(trackingId, token)) {
+            console.log('Click tracking blocked - invalid token:', {
+                trackingId,
+                token,
+                originalUrl,
+                timestamp: new Date().toISOString()
+            });
+            // Mesmo com token inválido, redirecionar para não quebrar a experiência
+            return NextResponse.redirect(decodeURIComponent(originalUrl), 302);
+        }
+
         // Obter informações do request para validação
         const userAgent = request.headers.get('user-agent');
         const referrer = request.headers.get('referer') || request.headers.get('referrer');
         const forwardedFor = request.headers.get('x-forwarded-for');
         const realIp = request.headers.get('x-real-ip');
+        const clientIp = forwardedFor?.split(',')[0] || realIp || 'unknown';
 
         // Log para debugging
         console.log('Click tracking attempt:', {
@@ -33,11 +46,11 @@ export async function GET(
             originalUrl,
             userAgent,
             referrer,
-            ip: forwardedFor || realIp,
+            ip: clientIp,
             timestamp: new Date().toISOString()
         });
 
-        // Validações de segurança
+        // Validações de segurança melhoradas
         const isValidClient = isValidEmailClient(userAgent);
         const isValidRef = isValidReferrer(referrer);
 
@@ -89,6 +102,7 @@ export async function GET(
                 previousStatus: email.status,
                 newStatus: nextStatus,
                 userAgent,
+                ip: clientIp,
                 timestamp: new Date().toISOString()
             });
         } else {
@@ -98,7 +112,8 @@ export async function GET(
                 isValidClient,
                 isValidRef,
                 userAgent,
-                referrer
+                referrer,
+                ip: clientIp
             });
         }
 
@@ -108,12 +123,15 @@ export async function GET(
     } catch (error) {
         console.error('Erro no tracking de clique:', error);
 
-        // Em caso de erro, tentar redirecionar mesmo assim
-        const { searchParams } = new URL(request.url);
-        const originalUrl = searchParams.get('url');
-
-        if (originalUrl) {
-            return NextResponse.redirect(decodeURIComponent(originalUrl), 302);
+        // Em caso de erro, ainda tentar redirecionar
+        try {
+            const { searchParams } = new URL(request.url);
+            const originalUrl = searchParams.get('url');
+            if (originalUrl) {
+                return NextResponse.redirect(decodeURIComponent(originalUrl), 302);
+            }
+        } catch (urlError) {
+            console.error('Erro ao extrair URL original:', urlError);
         }
 
         return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });

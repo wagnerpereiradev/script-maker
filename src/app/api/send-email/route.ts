@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-import { PrismaClient } from '@/generated/prisma';
+import { prisma } from '@/lib/prisma';
 import { getSMTPConfig, getSMTPPassword } from '@/lib/settings';
 import { randomBytes } from 'crypto';
 import { addEmailTracking, getBaseUrl } from '@/lib/email-tracking';
 import { requireAuth, unauthorizedResponse } from '@/lib/api-auth';
-
-const prisma = new PrismaClient();
 
 interface Contact {
     id: string;

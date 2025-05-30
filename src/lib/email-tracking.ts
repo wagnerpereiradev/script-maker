@@ -3,15 +3,38 @@
  * Adiciona pixel de tracking e substitui links por URLs de tracking
  */
 
+import { createHmac } from 'crypto';
+
+/**
+ * Gera token HMAC para validação de tracking
+ */
+export function generateTrackingToken(trackingId: string, secret?: string): string {
+    const hmacSecret = secret || process.env.TRACKING_SECRET || 'default-secret-change-in-production';
+    return createHmac('sha256', hmacSecret)
+        .update(trackingId)
+        .digest('hex')
+        .substring(0, 16); // Usar apenas primeiros 16 caracteres para URL mais limpa
+}
+
+/**
+ * Valida token HMAC de tracking
+ */
+export function validateTrackingToken(trackingId: string, token: string, secret?: string): boolean {
+    const expectedToken = generateTrackingToken(trackingId, secret);
+    return token === expectedToken;
+}
+
 /**
  * Adiciona pixel de tracking para rastrear abertura do email
- * Usa atributos específicos para evitar carregamento automático
+ * Usa GIF transparente de 43 bytes para máxima performance
  */
 export function addOpenTracking(htmlContent: string, trackingId: string, baseUrl: string): string {
-    // Pixel de tracking otimizado para evitar falsos positivos
+    const token = generateTrackingToken(trackingId);
+
+    // Pixel de tracking otimizado - GIF 1x1 transparente (43 bytes)
     const trackingPixel = `
         <img 
-            src="${baseUrl}/api/track/open/${trackingId}" 
+            src="${baseUrl}/api/track/open/${trackingId}?t=${token}" 
             width="1" 
             height="1" 
             style="display:none !important; visibility:hidden !important; opacity:0 !important; position:absolute !important; left:-9999px !important;" 
@@ -35,6 +58,8 @@ export function addOpenTracking(htmlContent: string, trackingId: string, baseUrl
  * Substitui todos os links por URLs de tracking para rastrear cliques
  */
 export function addClickTracking(htmlContent: string, trackingId: string, baseUrl: string): string {
+    const token = generateTrackingToken(trackingId);
+
     // Regex melhorada para encontrar links href
     const linkRegex = /href\s*=\s*["']([^"']+)["']/gi;
 
@@ -54,9 +79,9 @@ export function addClickTracking(htmlContent: string, trackingId: string, baseUr
             return match;
         }
 
-        // Criar URL de tracking
+        // Criar URL de tracking com token
         const encodedUrl = encodeURIComponent(originalUrl);
-        const trackingUrl = `${baseUrl}/api/track/click/${trackingId}?url=${encodedUrl}`;
+        const trackingUrl = `${baseUrl}/api/track/click/${trackingId}?url=${encodedUrl}&t=${token}`;
 
         return `href="${trackingUrl}"`;
     });
@@ -101,52 +126,63 @@ export function getBaseUrl(request?: Request): string {
 
 /**
  * Valida se o User-Agent é de um cliente de email real
- * Filtra bots, crawlers e pre-loading
+ * Filtra bots, crawlers e pre-loading com validação mais rigorosa
  */
 export function isValidEmailClient(userAgent: string | null): boolean {
     if (!userAgent) return false;
 
     const userAgentLower = userAgent.toLowerCase();
 
-    // Lista de bots e crawlers conhecidos
+    // Lista expandida de bots e crawlers conhecidos
     const botPatterns = [
         'bot', 'crawler', 'spider', 'scraper', 'fetch', 'curl', 'wget',
         'googlebot', 'bingbot', 'slurp', 'duckduckbot', 'facebookexternalhit',
         'twitterbot', 'linkedinbot', 'whatsapp', 'telegrambot', 'slackbot',
         'microsoftpreview', 'outlooklinkthumbnail', 'gmail-mobile-linkcheck',
         'prefetch', 'preload', 'preview', 'proxy', 'monitor', 'check',
-        'headless', 'phantom', 'selenium', 'automated'
+        'headless', 'phantom', 'selenium', 'automated', 'scanner', 'test',
+        'pingdom', 'uptime', 'mailgun', 'sendgrid', 'mandrill', 'mailchimp'
     ];
 
     // Verificar se contém padrões de bot
     const isBot = botPatterns.some(pattern => userAgentLower.includes(pattern));
     if (isBot) return false;
 
-    // Lista de clientes de email válidos
+    // Lista de clientes de email válidos (mais específica)
     const validEmailClients = [
-        'outlook', 'thunderbird', 'apple mail', 'gmail', 'mail.ru',
-        'yahoo mail', 'airmail', 'spark', 'mailbird', 'em client',
-        'mail and calendar', 'windows mail', 'mail app', 'k-9 mail',
-        'blue mail', 'mymail', 'email', 'mozilla'
+        'outlook', 'thunderbird', 'apple mail', 'mail.app', 'gmail',
+        'mail.ru', 'yahoo mail', 'airmail', 'spark', 'mailbird', 'em client',
+        'mail and calendar', 'windows mail', 'k-9 mail', 'blue mail',
+        'mymail', 'newton mail', 'canary mail', 'polymail', 'superhuman'
     ];
 
     // Verificar se é um cliente de email conhecido
     const isEmailClient = validEmailClients.some(client =>
-        userAgentLower.includes(client)
+        userAgentLower.includes(client.replace(' ', ''))
     );
 
-    // Se não for identificado como cliente de email, verificar padrões suspeitos
-    if (!isEmailClient) {
-        // Permitir navegadores comuns (podem abrir emails)
-        const commonBrowsers = ['chrome', 'firefox', 'safari', 'edge', 'opera'];
-        const isBrowser = commonBrowsers.some(browser =>
-            userAgentLower.includes(browser)
-        );
+    if (isEmailClient) return true;
 
-        return isBrowser;
+    // Para navegadores, ser mais restritivo - só aceitar se tiver padrões específicos
+    const browserPatterns = [
+        'chrome/', 'firefox/', 'safari/', 'edge/', 'opera/',
+        'mozilla/', 'webkit/', 'android', 'iphone', 'ipad'
+    ];
+
+    const isBrowser = browserPatterns.some(pattern =>
+        userAgentLower.includes(pattern)
+    );
+
+    // Só aceitar navegadores se não parecer automático
+    if (isBrowser) {
+        const automatedPatterns = ['headless', 'selenium', 'webdriver', 'puppeteer'];
+        const isAutomated = automatedPatterns.some(pattern =>
+            userAgentLower.includes(pattern)
+        );
+        return !isAutomated;
     }
 
-    return true;
+    return false;
 }
 
 /**
@@ -157,10 +193,11 @@ export function isValidReferrer(referrer: string | null): boolean {
 
     const referrerLower = referrer.toLowerCase();
 
-    // Lista de referrers suspeitos
+    // Lista expandida de referrers suspeitos
     const suspiciousReferrers = [
         'preview', 'scan', 'security', 'antivirus', 'filter',
-        'protection', 'safe', 'check', 'verify', 'validate'
+        'protection', 'safe', 'check', 'verify', 'validate',
+        'preload', 'prefetch', 'cache', 'proxy', 'monitor'
     ];
 
     return !suspiciousReferrers.some(pattern =>
@@ -199,4 +236,16 @@ export function getNextStatus(currentStatus: string, actionType: 'open' | 'click
 
     // Manter status atual se não pode ser atualizado
     return currentStatus;
+}
+
+/**
+ * Retorna o pixel de tracking transparente otimizado
+ * GIF 1x1 transparente de 43 bytes (mais eficiente que PNG)
+ */
+export function getOptimizedTrackingPixel(): Buffer {
+    // GIF transparente 1x1 (43 bytes) - mais leve que PNG
+    return Buffer.from(
+        'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+        'base64'
+    );
 } 
