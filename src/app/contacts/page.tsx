@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import MainLayout from '@/components/MainLayout';
-import { Search, Filter, Users, Calendar, Eye, Trash2, Plus, Edit3, Power, PowerOff, Check, X, Phone, Mail, Globe, Building2, User, MessageSquare, Upload, FileText, AlertCircle, CheckCircle, List } from 'lucide-react';
+import ContactItem from '@/components/ContactItem';
+import { Search, Filter, Users, Eye, Trash2, Plus, Edit3, Check, X, Upload, FileText, AlertCircle, CheckCircle, List } from 'lucide-react';
 import Link from 'next/link';
 
 interface MailingList {
@@ -950,145 +951,44 @@ export default function Contacts() {
 
                             {/* Lista de Contatos - Layout Compacto */}
                             {contacts.map((contact) => (
-                                <div
+                                <ContactItem
                                     key={contact.id}
-                                    className={`bg-neutral-gradient rounded-lg p-4 border transition-colors ${selectedContacts.has(contact.id)
-                                        ? 'border-blue-500 bg-blue-900/10'
-                                        : 'border-neutral-800 hover:border-neutral-700'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        {/* Checkbox */}
-                                        <div className="flex-shrink-0">
-                                            <CustomCheckbox
-                                                checked={selectedContacts.has(contact.id)}
-                                                onChange={() => toggleSelectContact(contact.id)}
-                                            />
-                                        </div>
-
-                                        {/* Avatar */}
-                                        <div className="flex-shrink-0">
-                                            <div className={`w-10 h-10 rounded-full ${getAvatarColor(contact.name)} flex items-center justify-center text-white font-semibold text-sm shadow-lg`}>
-                                                {getInitials(contact.name)}
-                                            </div>
-                                        </div>
-
-                                        {/* Conteúdo Principal - Layout Horizontal */}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between">
-                                                {/* Informações do Contato */}
-                                                <div className="flex-1 min-w-0 pr-4">
-                                                    {/* Linha 1: Nome + Cargo + Status */}
-                                                    <div className="flex items-center gap-3 mb-1">
-                                                        <h3 className="text-base font-semibold text-white truncate">
-                                                            {contact.name}
-                                                        </h3>
-                                                        {contact.position && (
-                                                            <span className="text-neutral-400 text-xs flex-shrink-0">
-                                                                • {contact.position}
-                                                            </span>
-                                                        )}
-                                                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs flex-shrink-0 ${contact.isActive
-                                                            ? 'bg-green-900/50 text-green-300 border border-green-700'
-                                                            : 'bg-red-900/50 text-red-300 border border-red-700'
-                                                            }`}>
-                                                            {contact.isActive ? <Power className="h-3 w-3" /> : <PowerOff className="h-3 w-3" />}
-                                                            {contact.isActive ? 'Ativo' : 'Inativo'}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Linha 2: Empresa + Email + Lista */}
-                                                    <div className="flex items-center gap-4 mb-1">
-                                                        <div className="flex items-center gap-1.5 text-sm">
-                                                            <Building2 className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
-                                                            <span className="truncate text-blue-300 font-medium">{contact.companyName}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-1.5 text-sm text-neutral-300">
-                                                            <Mail className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
-                                                            <span className="truncate">{contact.email}</span>
-                                                        </div>
-                                                        {contact.mailingList && (
-                                                            <div className="flex items-center gap-1.5 text-sm">
-                                                                <div
-                                                                    className="w-2 h-2 rounded-full flex-shrink-0"
-                                                                    style={{ backgroundColor: contact.mailingList.color }}
-                                                                />
-                                                                <span className="truncate text-neutral-400 text-xs">
-                                                                    {contact.mailingList.name}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Linha 3: Informações adicionais */}
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-4 text-xs text-neutral-400">
-                                                            {contact.phone && (
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <Phone className="h-3 w-3 flex-shrink-0" />
-                                                                    <span>{formatPhoneNumber(contact.phone)}</span>
-                                                                </div>
-                                                            )}
-                                                            {contact.niche && (
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <User className="h-3 w-3 flex-shrink-0" />
-                                                                    <span className="truncate">{contact.niche}</span>
-                                                                </div>
-                                                            )}
-                                                            {contact.website && (
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <Globe className="h-3 w-3 flex-shrink-0" />
-                                                                    <span className="truncate max-w-24">{contact.website.replace(/^https?:\/\//, '')}</span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex items-center text-xs text-neutral-500 flex-shrink-0">
-                                                            <Calendar className="h-3 w-3 mr-1" />
-                                                            {new Date(contact.updatedAt).toLocaleDateString('pt-BR')}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Notas (se existir) */}
-                                                    {contact.notes && (
-                                                        <div className="flex items-start gap-1.5 text-xs text-neutral-400 mt-1">
-                                                            <MessageSquare className="h-3 w-3 mt-0.5 text-neutral-500 flex-shrink-0" />
-                                                            <p className="truncate">{contact.notes}</p>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* Botões de Ação - Compactos */}
-                                                <div className="flex gap-1.5 flex-shrink-0">
-                                                    <button
-                                                        onClick={() => openViewModal(contact.id)}
-                                                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-neutral-800 text-white rounded-md hover:bg-neutral-700 transition-colors border border-neutral-600 text-xs cursor-pointer"
-                                                        title="Visualizar contato"
-                                                    >
-                                                        <Eye className="h-3.5 w-3.5" />
-                                                        <span className="hidden sm:inline">Ver</span>
-                                                    </button>
-                                                    <button
-                                                        onClick={() => openViewModal(contact.id)}
-                                                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs cursor-pointer"
-                                                        title="Editar contato"
-                                                    >
-                                                        <Edit3 className="h-3.5 w-3.5" />
-                                                        <span className="hidden sm:inline">Editar</span>
-                                                    </button>
-                                                    <button
-                                                        onClick={() => deleteContact(contact.id)}
-                                                        disabled={deleting}
-                                                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                                                        title="Deletar contato"
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                        <span className="hidden sm:inline">Deletar</span>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                    contact={contact}
+                                    isSelected={selectedContacts.has(contact.id)}
+                                    showCheckbox={true}
+                                    onToggleSelect={toggleSelectContact}
+                                    showActions={true}
+                                    selectionMode="checkbox"
+                                    actionButtons={
+                                        <>
+                                            <button
+                                                onClick={() => openViewModal(contact.id)}
+                                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-neutral-800 text-white rounded-md hover:bg-neutral-700 transition-colors border border-neutral-600 text-xs cursor-pointer"
+                                                title="Visualizar contato"
+                                            >
+                                                <Eye className="h-3.5 w-3.5" />
+                                                <span className="hidden sm:inline">Ver</span>
+                                            </button>
+                                            <button
+                                                onClick={() => openViewModal(contact.id)}
+                                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs cursor-pointer"
+                                                title="Editar contato"
+                                            >
+                                                <Edit3 className="h-3.5 w-3.5" />
+                                                <span className="hidden sm:inline">Editar</span>
+                                            </button>
+                                            <button
+                                                onClick={() => deleteContact(contact.id)}
+                                                disabled={deleting}
+                                                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                                                title="Deletar contato"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                                <span className="hidden sm:inline">Deletar</span>
+                                            </button>
+                                        </>
+                                    }
+                                />
                             ))}
                         </div>
                     )}

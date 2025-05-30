@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import MainLayout from '@/components/MainLayout';
-import { Search, User, FileText, Mail, Eye, Send, ArrowLeft, ArrowRight, Check, X, Loader2, AlertCircle, Building2, Phone, MapPin, Power, PowerOff, Maximize2, Monitor } from 'lucide-react';
+import ContactItem from '@/components/ContactItem';
+import EmailTemplatePreview from '@/components/EmailTemplatePreview';
+import { Search, User, FileText, Mail, Send, ArrowLeft, ArrowRight, Check, X, Loader2, AlertCircle, Users, List } from 'lucide-react';
 
 interface Contact {
     id: string;
@@ -17,6 +19,16 @@ interface Contact {
     previousInteraction?: string;
     notes?: string;
     isActive: boolean;
+}
+
+interface MailingList {
+    id: string;
+    name: string;
+    description?: string;
+    color: string;
+    _count?: {
+        contacts: number;
+    };
 }
 
 interface Script {
@@ -63,344 +75,23 @@ interface SMTPConfig {
     yourLocation?: string;
 }
 
-// Modal de preview em tela cheia
-const FullscreenPreviewModal = ({
-    isOpen,
-    onClose,
-    content,
-    subject
-}: {
-    isOpen: boolean;
-    onClose: () => void;
-    content: string;
-    subject: string;
-}) => {
-    const iframeRef = useRef<HTMLIFrameElement>(null);
-
-    useEffect(() => {
-        if (iframeRef.current && content && isOpen) {
-            const iframe = iframeRef.current;
-            const doc = iframe.contentDocument || iframe.contentWindow?.document;
-
-            if (doc) {
-                const htmlContent = `
-                    <!DOCTYPE html>
-                    <html lang="pt-BR">
-                    <head>
-                        <meta charset="UTF-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>Preview do Email</title>
-                        <style>
-                            * { box-sizing: border-box; }
-                            body {
-                                margin: 0;
-                                padding: 0;
-                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-                                line-height: 1.6;
-                                color: #333;
-                                background-color: #f8f9fa;
-                            }
-                            .email-wrapper {
-                                background-color: #f8f9fa;
-                                padding: 40px 20px;
-                                min-height: 100vh;
-                            }
-                            .email-container {
-                                max-width: 600px;
-                                margin: 0 auto;
-                                background-color: #ffffff;
-                                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                                border: 1px solid #e9ecef;
-                            }
-                            .email-header {
-                                background-color: #ffffff;
-                                border-bottom: 1px solid #e9ecef;
-                                padding: 20px;
-                            }
-                            .email-subject {
-                                font-size: 18px;
-                                font-weight: 600;
-                                color: #212529;
-                                margin: 0;
-                            }
-                            .email-body {
-                                padding: 30px;
-                                background-color: #ffffff;
-                            }
-                            img { max-width: 100%; height: auto; }
-                            table { border-collapse: collapse; width: 100%; }
-                            td, th { text-align: left; padding: 8px; }
-                            a { color: #0066cc; text-decoration: underline; }
-                            a:hover { text-decoration: none; }
-                            h1, h2, h3, h4, h5, h6 { margin-top: 0; margin-bottom: 16px; line-height: 1.25; }
-                            p { margin-top: 0; margin-bottom: 16px; }
-                            ul, ol { margin-top: 0; margin-bottom: 16px; padding-left: 30px; }
-                            li { margin-bottom: 4px; }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="email-wrapper">
-                            <div class="email-container">
-                                <div class="email-header">
-                                    <h1 class="email-subject">${subject}</h1>
-                                </div>
-                                <div class="email-body">
-                                    ${content}
-                                </div>
-                            </div>
-                        </div>
-                    </body>
-                    </html>
-                `;
-
-                doc.open();
-                doc.write(htmlContent);
-                doc.close();
-            }
-        }
-    }, [content, subject, isOpen]);
-
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-            <div className="bg-white w-full h-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
-                {/* Header do Modal */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
-                    <div className="flex items-center gap-3">
-                        <Monitor className="h-5 w-5 text-gray-600" />
-                        <h3 className="text-lg font-semibold text-gray-900">Preview do Email</h3>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
-                    >
-                        <X className="h-5 w-5 text-gray-600" />
-                    </button>
-                </div>
-
-                {/* Conteúdo do Modal */}
-                <div className="flex-1 bg-white">
-                    <iframe
-                        ref={iframeRef}
-                        className="w-full h-full border-none"
-                        sandbox="allow-same-origin"
-                        title="Preview Completo do Email"
-                    />
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// Componente de preview melhorado simulando email real
-const EmailPreview = ({
-    content,
-    subject,
-    className = ""
-}: {
-    content: string;
-    subject: string;
-    className?: string;
-}) => {
-    const iframeRef = useRef<HTMLIFrameElement>(null);
-    const [showFullscreen, setShowFullscreen] = useState(false);
-
-    useEffect(() => {
-        if (iframeRef.current && content) {
-            const iframe = iframeRef.current;
-            const doc = iframe.contentDocument || iframe.contentWindow?.document;
-
-            if (doc) {
-                const htmlContent = `
-                    <!DOCTYPE html>
-                    <html lang="pt-BR">
-                    <head>
-                        <meta charset="UTF-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>Preview</title>
-                        <style>
-                            * { box-sizing: border-box; }
-                            body {
-                                margin: 0;
-                                padding: 0;
-                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-                                line-height: 1.6;
-                                color: #333;
-                                background-color: #f8f9fa;
-                            }
-                            .email-wrapper {
-                                background-color: #f8f9fa;
-                                padding: 20px;
-                            }
-                            .email-container {
-                                max-width: 600px;
-                                margin: 0 auto;
-                                background-color: #ffffff;
-                                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-                                border: 1px solid #e9ecef;
-                            }
-                            .email-header {
-                                background-color: #ffffff;
-                                border-bottom: 1px solid #e9ecef;
-                                padding: 15px 20px;
-                            }
-                            .email-subject {
-                                font-size: 16px;
-                                font-weight: 600;
-                                color: #212529;
-                                margin: 0;
-                                overflow: hidden;
-                                text-overflow: ellipsis;
-                                white-space: nowrap;
-                            }
-                            .email-body {
-                                padding: 20px;
-                                background-color: #ffffff;
-                            }
-                            img { max-width: 100%; height: auto; }
-                            table { border-collapse: collapse; width: 100%; }
-                            td, th { text-align: left; padding: 8px; }
-                            a { color: #0066cc; text-decoration: underline; }
-                            a:hover { text-decoration: none; }
-                            h1, h2, h3, h4, h5, h6 { margin-top: 0; margin-bottom: 16px; line-height: 1.25; }
-                            p { margin-top: 0; margin-bottom: 16px; }
-                            ul, ol { margin-top: 0; margin-bottom: 16px; padding-left: 30px; }
-                            li { margin-bottom: 4px; }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="email-wrapper">
-                        <div class="email-container">
-                                <div class="email-header">
-                                    <div class="email-subject">${subject || 'Sem assunto'}</div>
-                                </div>
-                                <div class="email-body">
-                            ${content}
-                                </div>
-                            </div>
-                        </div>
-                    </body>
-                    </html>
-                `;
-
-                doc.open();
-                doc.write(htmlContent);
-                doc.close();
-            }
-        }
-    }, [content, subject]);
-
-    if (!content) {
-        return (
-            <div className="bg-gray-50 border border-gray-200 p-8 text-center text-gray-500 min-h-[400px] flex items-center justify-center">
-                <div>
-                    <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 flex items-center justify-center">
-                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                    </div>
-                    <p className="font-medium text-gray-700 mb-2">Nenhum conteúdo para visualizar</p>
-                    <p className="text-sm text-gray-500">O preview aparecerá aqui quando todos os campos estiverem preenchidos</p>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <>
-            <div className={`bg-white overflow-hidden shadow-lg border border-gray-200 relative ${className}`}>
-                {/* Botão de tela cheia */}
-                <button
-                    onClick={() => setShowFullscreen(true)}
-                    className="absolute top-2 right-2 z-10 p-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white transition-all"
-                    title="Ver em tela cheia"
-                >
-                    <Maximize2 className="h-4 w-4" />
-                </button>
-
-                <iframe
-                    ref={iframeRef}
-                    className="w-full h-full min-h-[500px] border-none"
-                    sandbox="allow-same-origin"
-                    title="Preview do Email"
-                />
-            </div>
-
-            <FullscreenPreviewModal
-                isOpen={showFullscreen}
-                onClose={() => setShowFullscreen(false)}
-                content={content}
-                subject={subject}
-            />
-        </>
-    );
-};
-
-// Função para gerar avatar com primeira letra
-const generateAvatar = (name: string): { letter: string; bgColor: string; textColor: string } => {
-    const letter = name ? name.charAt(0).toUpperCase() : '?';
-    const colors = [
-        { bg: 'bg-blue-500', text: 'text-white' },
-        { bg: 'bg-green-500', text: 'text-white' },
-        { bg: 'bg-purple-500', text: 'text-white' },
-        { bg: 'bg-pink-500', text: 'text-white' },
-        { bg: 'bg-indigo-500', text: 'text-white' },
-        { bg: 'bg-yellow-500', text: 'text-black' },
-        { bg: 'bg-red-500', text: 'text-white' },
-        { bg: 'bg-teal-500', text: 'text-white' },
-    ];
-
-    const charCode = letter.charCodeAt(0);
-    const colorIndex = charCode % colors.length;
-    const selectedColor = colors[colorIndex];
-
-    return {
-        letter,
-        bgColor: selectedColor.bg,
-        textColor: selectedColor.text,
-    };
-};
-
-// Função para formatar telefones de forma simplificada
-const formatPhoneSimple = (phone: string): string => {
-    if (!phone) return '';
-
-    // Remove todos os caracteres não numéricos, exceto + no início
-    let cleaned = phone.replace(/[^\d+]/g, '');
-
-    // Se não tem +, assume que é número brasileiro
-    if (!cleaned.startsWith('+')) {
-        // Remove zeros à esquerda
-        cleaned = cleaned.replace(/^0+/, '');
-
-        // Se tem 11 dígitos, assume formato brasileiro com DDD
-        if (cleaned.length === 11) {
-            return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
-        }
-        // Se tem 10 dígitos, assume formato brasileiro com DDD (telefone fixo)
-        else if (cleaned.length === 10) {
-            return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
-        }
-    }
-
-    // Para outros casos, retorna como está
-    return phone;
-};
-
 export default function SendEmail() {
     const [step, setStep] = useState(1);
     const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+    const [selectedMailingList, setSelectedMailingList] = useState<MailingList | null>(null);
+    const [sendType, setSendType] = useState<'individual' | 'list'>('individual');
     const [selectedScript, setSelectedScript] = useState<Script | null>(null);
     const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
 
     // Lists
     const [contacts, setContacts] = useState<Contact[]>([]);
+    const [mailingLists, setMailingLists] = useState<MailingList[]>([]);
     const [scripts, setScripts] = useState<Script[]>([]);
     const [templates, setTemplates] = useState<Template[]>([]);
 
     // Search states
     const [contactSearch, setContactSearch] = useState('');
+    const [mailingListSearch, setMailingListSearch] = useState('');
     const [scriptSearch, setScriptSearch] = useState('');
     const [templateSearch, setTemplateSearch] = useState('');
 
@@ -412,17 +103,40 @@ export default function SendEmail() {
     // UI states
     const [sending, setSending] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [previewContact, setPreviewContact] = useState<Contact | null>(null);
 
     // Fetch data functions
     const fetchContacts = useCallback(async () => {
         try {
-            const response = await fetch('/api/contacts?limit=100');
+            const response = await fetch('/api/contacts?limit=9999&isActive=true');
             if (response.ok) {
                 const data = await response.json();
-                setContacts(data.contacts.filter((c: Contact) => c.isActive));
+                setContacts((data.contacts || []).filter((c: Contact) => c.isActive));
             }
         } catch (error) {
             console.error('Erro ao buscar contatos:', error);
+        }
+    }, []);
+
+    const fetchMailingLists = useCallback(async () => {
+        try {
+            console.log('Iniciando fetch das listas...');
+            const response = await fetch('/api/mailing-lists');
+            console.log('Response status:', response.status);
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Dados recebidos:', data);
+                console.log('mailingLists:', data.mailingLists);
+                setMailingLists(data.mailingLists || []);
+                console.log('Listas setadas:', data.mailingLists?.length || 0);
+            } else {
+                console.error('Erro na resposta:', response.status, response.statusText);
+                const errorText = await response.text();
+                console.error('Erro detalhado:', errorText);
+            }
+        } catch (error) {
+            console.error('Erro ao buscar listas de email:', error);
         }
     }, []);
 
@@ -431,7 +145,7 @@ export default function SendEmail() {
             const response = await fetch('/api/scripts?limit=100');
             if (response.ok) {
                 const data = await response.json();
-                setScripts(data.scripts);
+                setScripts(data.scripts || []);
             }
         } catch (error) {
             console.error('Erro ao buscar scripts:', error);
@@ -443,7 +157,7 @@ export default function SendEmail() {
             const response = await fetch('/api/templates?limit=100&includeContent=true');
             if (response.ok) {
                 const data = await response.json();
-                setTemplates(data.templates.filter((t: Template) => t.isActive));
+                setTemplates((data.templates || []).filter((t: Template) => t.isActive));
             }
         } catch (error) {
             console.error('Erro ao buscar templates:', error);
@@ -476,102 +190,52 @@ export default function SendEmail() {
         }
     }, []);
 
+    // Buscar contato de exemplo da lista para preview
+    const fetchPreviewContact = useCallback(async (listId: string) => {
+        try {
+            const response = await fetch(`/api/contacts?mailingListId=${listId}&limit=1`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.contacts && data.contacts.length > 0) {
+                    setPreviewContact(data.contacts[0]);
+                } else {
+                    setPreviewContact(null);
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao buscar contato de preview:', error);
+            setPreviewContact(null);
+        }
+    }, []);
+
     useEffect(() => {
         fetchContacts();
+        fetchMailingLists();
         fetchScripts();
         fetchTemplates();
         fetchSMTPConfig();
-    }, [fetchContacts, fetchScripts, fetchTemplates, fetchSMTPConfig]);
+    }, [fetchContacts, fetchMailingLists, fetchScripts, fetchTemplates, fetchSMTPConfig]);
 
-    // Replace template variables with actual data
-    const replaceVariables = useCallback((content: string, contact: Contact, script?: Script | null): string => {
-        // Verificar se content é válido
-        if (!content || typeof content !== 'string') {
-            return '';
-        }
-
-        let result = content;
-
-        // Verificar se contact existe antes de usar suas propriedades
-        if (contact) {
-            // Dados do contato
-            result = result.replace(/{{contactName}}/g, contact.name || '');
-            result = result.replace(/{{contactFirstName}}/g, contact.name ? contact.name.split(' ')[0] : '');
-            result = result.replace(/{{contactEmail}}/g, contact.email || '');
-            result = result.replace(/{{contactPhone}}/g, contact.phone || '');
-            result = result.replace(/{{contactPosition}}/g, contact.position || '');
-            result = result.replace(/{{companyName}}/g, contact.companyName || '');
-            result = result.replace(/{{companyWebsite}}/g, contact.website || '');
-            result = result.replace(/{{companySize}}/g, '');
-            result = result.replace(/{{companyIndustry}}/g, contact.niche || '');
-            result = result.replace(/{{companyLocation}}/g, '');
-        }
-
-        // Verificar se script existe antes de usar suas propriedades
-        if (script) {
-            // Dados do script - preserva quebras de linha convertendo para HTML
-            const scriptBodyFormatted = script.body ? script.body.replace(/\n/g, '<br>') : '';
-            result = result.replace(/{{scriptBody}}/g, scriptBodyFormatted);
-            result = result.replace(/{{painPoints}}/g,
-                (contact?.painPoints) ||
-                (script.prospectData?.painPoints) ||
-                ''
-            );
-            result = result.replace(/{{solutions}}/g, '');
-            result = result.replace(/{{benefits}}/g, '');
-            result = result.replace(/{{competitorAnalysis}}/g, '');
-            result = result.replace(/{{roi}}/g, '');
-
-            // Call to action do script
-            result = result.replace(/{{primaryCTA}}/g, script.callToAction || '');
-            result = result.replace(/{{secondaryCTA}}/g, '');
-            result = result.replace(/{{ctaLink}}/g, '');
+    // Atualizar preview contact quando lista muda
+    useEffect(() => {
+        if (sendType === 'list' && selectedMailingList) {
+            fetchPreviewContact(selectedMailingList.id);
         } else {
-            // Se não há script, remover ou substituir por valores padrão
-            result = result.replace(/{{scriptBody}}/g, '');
-            result = result.replace(/{{painPoints}}/g, contact?.painPoints || '');
-            result = result.replace(/{{solutions}}/g, '');
-            result = result.replace(/{{benefits}}/g, '');
-            result = result.replace(/{{competitorAnalysis}}/g, '');
-            result = result.replace(/{{roi}}/g, '');
-            result = result.replace(/{{primaryCTA}}/g, '');
-            result = result.replace(/{{secondaryCTA}}/g, '');
-            result = result.replace(/{{ctaLink}}/g, '');
+            setPreviewContact(null);
         }
-
-        // Dados do remetente (SMTP config)
-        result = result.replace(/{{senderName}}/g, smtpConfig?.fromName || '');
-        result = result.replace(/{{senderEmail}}/g, smtpConfig?.fromEmail || '');
-        result = result.replace(/{{senderCompany}}/g, '');
-        result = result.replace(/{{senderPhone}}/g, '');
-        result = result.replace(/{{senderLinkedIn}}/g, '');
-
-        // Dados pessoais do remetente
-        result = result.replace(/{{yourName}}/g, smtpConfig?.yourName || '');
-        result = result.replace(/{{yourCompany}}/g, smtpConfig?.yourCompany || '');
-        result = result.replace(/{{yourPhone}}/g, smtpConfig?.yourPhone || '');
-        result = result.replace(/{{yourIndustry}}/g, smtpConfig?.yourIndustry || '');
-        result = result.replace(/{{yourPosition}}/g, smtpConfig?.yourPosition || '');
-        result = result.replace(/{{yourWebsite}}/g, smtpConfig?.yourWebsite || '');
-        result = result.replace(/{{yourLocation}}/g, smtpConfig?.yourLocation || '');
-
-        // Dados dinâmicos
-        result = result.replace(/{{currentDate}}/g, new Date().toLocaleDateString('pt-BR'));
-        result = result.replace(/{{currentTime}}/g, new Date().toLocaleTimeString('pt-BR'));
-        result = result.replace(/{{dayOfWeek}}/g, new Date().toLocaleDateString('pt-BR', { weekday: 'long' }));
-
-        return result;
-    }, [smtpConfig]);
+    }, [sendType, selectedMailingList, fetchPreviewContact]);
 
     // Generate final email when all selections are made
     useEffect(() => {
-        if (selectedContact && selectedTemplate &&
+        const contactForPreview = sendType === 'individual' ? selectedContact : previewContact;
+
+        if (contactForPreview && selectedTemplate &&
             selectedTemplate.subject && selectedTemplate.htmlContent) {
             try {
                 const processedSubject = selectedScript
                     ? selectedScript.subject
-                    : replaceVariables(selectedTemplate.subject, selectedContact, selectedScript);
-                const processedContent = replaceVariables(selectedTemplate.htmlContent, selectedContact, selectedScript);
+                    : selectedTemplate.subject;
+                const processedContent = selectedTemplate.htmlContent;
 
                 setFinalSubject(processedSubject);
                 setFinalHtmlContent(processedContent);
@@ -584,38 +248,71 @@ export default function SendEmail() {
             setFinalSubject('');
             setFinalHtmlContent('');
         }
-    }, [selectedContact, selectedScript, selectedTemplate, smtpConfig, replaceVariables]);
+    }, [selectedContact, previewContact, selectedScript, selectedTemplate, sendType]);
 
     // Send email function
     const sendEmail = async () => {
-        if (!selectedContact || !selectedTemplate || !smtpConfig) {
-            setMessage({ type: 'error', text: 'Contato, template e configuração SMTP são obrigatórios' });
+        if ((!selectedContact && !selectedMailingList) || !selectedTemplate || !smtpConfig) {
+            setMessage({ type: 'error', text: 'Seleções e configuração SMTP são obrigatórias' });
             return;
         }
 
         setSending(true);
         try {
+            const requestBody: {
+                scriptId: string | null;
+                templateId: string;
+                subject: string;
+                htmlContent: string;
+                contactId?: string;
+                toEmail?: string;
+                toName?: string;
+                mailingListId?: string;
+            } = {
+                scriptId: selectedScript?.id || null,
+                templateId: selectedTemplate.id,
+                subject: sendType === 'list'
+                    ? (selectedScript ? selectedScript.subject : selectedTemplate.subject)
+                    : finalSubject,
+                htmlContent: sendType === 'list'
+                    ? selectedTemplate.htmlContent
+                    : finalHtmlContent,
+            };
+
+            // Adicionar dados específicos baseado no tipo de envio
+            if (sendType === 'individual' && selectedContact) {
+                requestBody.contactId = selectedContact.id;
+                requestBody.toEmail = selectedContact.email;
+                requestBody.toName = selectedContact.name;
+            } else if (sendType === 'list' && selectedMailingList) {
+                requestBody.mailingListId = selectedMailingList.id;
+            }
+
             const response = await fetch('/api/send-email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contactId: selectedContact.id,
-                    scriptId: selectedScript?.id || null,
-                    templateId: selectedTemplate.id,
-                    toEmail: selectedContact.email,
-                    toName: selectedContact.name,
-                    subject: finalSubject,
-                    htmlContent: finalHtmlContent,
-                }),
+                body: JSON.stringify(requestBody),
             });
 
             if (response.ok) {
-                setMessage({ type: 'success', text: 'Email enviado com sucesso!' });
+                const result = await response.json();
+
+                if (sendType === 'list') {
+                    setMessage({
+                        type: 'success',
+                        text: `Envio concluído! ${result.summary.sent} emails enviados com sucesso de ${result.summary.total} total.`
+                    });
+                } else {
+                    setMessage({ type: 'success', text: 'Email enviado com sucesso!' });
+                }
+
                 // Reset form
                 setStep(1);
                 setSelectedContact(null);
+                setSelectedMailingList(null);
                 setSelectedScript(null);
                 setSelectedTemplate(null);
+                setSendType('individual');
             } else {
                 const error = await response.json();
                 setMessage({ type: 'error', text: error.error || 'Erro ao enviar email' });
@@ -628,7 +325,7 @@ export default function SendEmail() {
     };
 
     // Filter functions
-    const filteredContacts = contacts.filter(contact =>
+    const filteredContacts = (contacts || []).filter(contact =>
         contact && contact.name && contact.companyName && contact.email && (
             contact.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
             contact.companyName.toLowerCase().includes(contactSearch.toLowerCase()) ||
@@ -636,14 +333,21 @@ export default function SendEmail() {
         )
     );
 
-    const filteredScripts = scripts.filter(script =>
+    const filteredMailingLists = (mailingLists || []).filter(list =>
+        list && list.name && (
+            list.name.toLowerCase().includes(mailingListSearch.toLowerCase()) ||
+            (list.description || '').toLowerCase().includes(mailingListSearch.toLowerCase())
+        )
+    );
+
+    const filteredScripts = (scripts || []).filter(script =>
         script && script.subject && (
             script.subject.toLowerCase().includes(scriptSearch.toLowerCase()) ||
             (script.prospectData?.contactName || '').toLowerCase().includes(scriptSearch.toLowerCase())
         )
     );
 
-    const filteredTemplates = templates.filter(template =>
+    const filteredTemplates = (templates || []).filter(template =>
         template && template.name && template.subject && (
             template.name.toLowerCase().includes(templateSearch.toLowerCase()) ||
             template.subject.toLowerCase().includes(templateSearch.toLowerCase())
@@ -684,7 +388,7 @@ export default function SendEmail() {
                     <div className="mb-6 flex-shrink-0">
                         <div className="flex items-center justify-between">
                             {[
-                                { step: 1, title: 'Selecionar Contato', icon: User },
+                                { step: 1, title: 'Para quem Enviar?', icon: Users },
                                 { step: 2, title: 'Escolher Template', icon: Mail },
                                 { step: 3, title: 'Escolher Script (Opcional)', icon: FileText },
                                 { step: 4, title: 'Revisar e Enviar', icon: Send }
@@ -725,167 +429,235 @@ export default function SendEmail() {
                     <div className="bg-neutral-gradient rounded-lg border border-neutral-800 flex-1 flex flex-col min-h-0">
                         {step === 1 && (
                             <div className="p-6 flex-1 flex flex-col min-h-0">
-                                <h2 className="text-xl font-semibold text-white mb-4 flex-shrink-0">Selecionar Contato</h2>
+                                <h2 className="text-xl font-semibold text-white mb-6 flex-shrink-0">Para quem Enviar?</h2>
 
-                                {/* Search */}
-                                <div className="mb-4 flex-shrink-0">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h3 className="text-sm font-medium text-neutral-300">
-                                            Contatos disponíveis
-                                        </h3>
-                                        <div className="flex items-center gap-2 px-2 py-1 bg-neutral-800 rounded text-xs text-neutral-400">
-                                            <User className="h-3 w-3" />
-                                            <span>{filteredContacts.length} contato{filteredContacts.length !== 1 ? 's' : ''}</span>
-                                        </div>
-                                    </div>
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
-                                        <input
-                                            type="text"
-                                            placeholder="Buscar por nome, empresa ou email..."
-                                            className="w-full pl-10 pr-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500"
-                                            value={contactSearch}
-                                            onChange={(e) => setContactSearch(e.target.value)}
-                                        />
+                                {/* Tipo de Envio */}
+                                <div className="mb-6 flex-shrink-0">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <button
+                                            onClick={() => {
+                                                setSendType('individual');
+                                                setSelectedMailingList(null);
+                                            }}
+                                            className={`p-4 rounded-lg border-2 transition-all ${sendType === 'individual'
+                                                ? 'border-blue-500 bg-blue-900/20'
+                                                : 'border-neutral-700 bg-neutral-800/50 hover:border-neutral-600'
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`p-2 rounded-lg ${sendType === 'individual' ? 'bg-blue-600' : 'bg-neutral-700'
+                                                    }`}>
+                                                    <User className="h-5 w-5 text-white" />
+                                                </div>
+                                                <div className="text-left">
+                                                    <h3 className="font-medium text-white">Contato Individual</h3>
+                                                    <p className="text-sm text-neutral-400">Enviar para um contato específico</p>
+                                                </div>
+                                            </div>
+                                        </button>
+
+                                        <button
+                                            onClick={() => {
+                                                setSendType('list');
+                                                setSelectedContact(null);
+                                            }}
+                                            className={`p-4 rounded-lg border-2 transition-all ${sendType === 'list'
+                                                ? 'border-blue-500 bg-blue-900/20'
+                                                : 'border-neutral-700 bg-neutral-800/50 hover:border-neutral-600'
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`p-2 rounded-lg ${sendType === 'list' ? 'bg-blue-600' : 'bg-neutral-700'
+                                                    }`}>
+                                                    <List className="h-5 w-5 text-white" />
+                                                </div>
+                                                <div className="text-left">
+                                                    <h3 className="font-medium text-white">Lista de Email</h3>
+                                                    <p className="text-sm text-neutral-400">Enviar para todos de uma lista</p>
+                                                </div>
+                                            </div>
+                                        </button>
                                     </div>
                                 </div>
 
-                                {/* Contacts List */}
-                                <div className="space-y-3 flex-1 overflow-y-auto min-h-0 mb-6">
-                                    {filteredContacts.length === 0 ? (
-                                        <div className="h-full flex items-center justify-center">
-                                            <div className="text-center">
-                                                <div className="w-16 h-16 mx-auto mb-4 bg-neutral-800 rounded-full flex items-center justify-center">
-                                                    <User className="w-8 h-8 text-neutral-500" />
-                                                </div>
-                                                <h3 className="text-white font-medium mb-2">
-                                                    {contactSearch ? 'Nenhum contato encontrado' : 'Nenhum contato disponível'}
+                                {/* Conteúdo baseado no tipo selecionado */}
+                                {sendType === 'individual' ? (
+                                    <>
+                                        {/* Search Contatos */}
+                                        <div className="mb-4 flex-shrink-0">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h3 className="text-sm font-medium text-neutral-300">
+                                                    Contatos disponíveis
                                                 </h3>
-                                                <p className="text-neutral-400 text-sm">
-                                                    {contactSearch
-                                                        ? 'Tente buscar com termos diferentes ou verifique se há contatos ativos.'
-                                                        : 'Você precisa ter contatos ativos para enviar emails.'
-                                                    }
-                                                </p>
-                                                {contactSearch && (
-                                                    <button
-                                                        onClick={() => setContactSearch('')}
-                                                        className="mt-3 text-blue-400 hover:text-blue-300 text-sm"
-                                                    >
-                                                        Limpar busca
-                                                    </button>
-                                                )}
+                                                <div className="flex items-center gap-2 px-2 py-1 bg-neutral-800 rounded text-xs text-neutral-400">
+                                                    <User className="h-3 w-3" />
+                                                    <span>{filteredContacts.length} contato{filteredContacts.length !== 1 ? 's' : ''}</span>
+                                                </div>
+                                            </div>
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Buscar por nome, empresa ou email..."
+                                                    className="w-full pl-10 pr-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500"
+                                                    value={contactSearch}
+                                                    onChange={(e) => setContactSearch(e.target.value)}
+                                                />
                                             </div>
                                         </div>
-                                    ) : (
-                                        filteredContacts.map((contact) => {
-                                            const avatar = generateAvatar(contact.name);
-                                            return (
-                                                <div
-                                                    key={contact.id}
-                                                    className={`p-4 border rounded-lg cursor-pointer transition-all ${selectedContact?.id === contact.id
-                                                        ? 'border-blue-500 bg-blue-900/20'
-                                                        : 'border-neutral-700 hover:border-neutral-600'
-                                                        }`}
-                                                    onClick={() => setSelectedContact(contact)}
-                                                >
-                                                    <div className="flex items-center gap-4">
-                                                        {/* Avatar */}
-                                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-semibold text-sm ${avatar.bgColor} ${avatar.textColor} shadow-lg flex-shrink-0`}>
-                                                            {avatar.letter}
+
+                                        {/* Contacts List */}
+                                        <div className="space-y-3 flex-1 overflow-y-auto min-h-0 mb-6">
+                                            {filteredContacts.length === 0 ? (
+                                                <div className="h-full flex items-center justify-center">
+                                                    <div className="text-center">
+                                                        <div className="w-16 h-16 mx-auto mb-4 bg-neutral-800 rounded-full flex items-center justify-center">
+                                                            <User className="w-8 h-8 text-neutral-500" />
                                                         </div>
-
-                                                        {/* Contact Info */}
-                                                        <div className="flex-1 min-w-0">
-                                                            {/* Linha 1: Nome + Status + Check */}
-                                                            <div className="flex items-center justify-between mb-1">
-                                                                <div className="flex items-center gap-3">
-                                                                    <h3 className="font-semibold text-white text-base truncate">
-                                                                        {contact.name}
-                                                                    </h3>
-                                                                    {contact.position && (
-                                                                        <span className="text-neutral-400 text-xs">
-                                                                            • {contact.position}
-                                                                        </span>
-                                                                    )}
-                                                                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs flex-shrink-0 ${contact.isActive
-                                                                        ? 'bg-green-900/50 text-green-300 border border-green-700'
-                                                                        : 'bg-red-900/50 text-red-300 border border-red-700'
-                                                                        }`}>
-                                                                        {contact.isActive ? <Power className="h-3 w-3" /> : <PowerOff className="h-3 w-3" />}
-                                                                        {contact.isActive ? 'Ativo' : 'Inativo'}
-                                                                    </div>
-                                                                </div>
-                                                                {selectedContact?.id === contact.id && (
-                                                                    <Check className="w-5 h-5 text-blue-400 flex-shrink-0" />
-                                                                )}
-                                                            </div>
-
-                                                            {/* Linha 2: Empresa + Email */}
-                                                            <div className="flex items-center gap-4 mb-2">
-                                                                <div className="flex items-center gap-1.5 text-sm">
-                                                                    <Building2 className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
-                                                                    <span className="truncate text-blue-300 font-medium">
-                                                                        {contact.companyName}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="flex items-center gap-1.5 text-sm text-neutral-300">
-                                                                    <Mail className="h-3.5 w-3.5 text-neutral-500 flex-shrink-0" />
-                                                                    <span className="truncate">{contact.email}</span>
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Linha 3: Informações adicionais */}
-                                                            <div className="flex items-center gap-4 text-xs text-neutral-400">
-                                                                {contact.phone && (
-                                                                    <div className="flex items-center gap-1.5">
-                                                                        <Phone className="h-3 w-3 flex-shrink-0" />
-                                                                        <span>{formatPhoneSimple(contact.phone)}</span>
-                                                                    </div>
-                                                                )}
-                                                                {contact.niche && (
-                                                                    <div className="flex items-center gap-1.5">
-                                                                        <User className="h-3 w-3 flex-shrink-0" />
-                                                                        <span className="truncate">{contact.niche}</span>
-                                                                    </div>
-                                                                )}
-                                                                {contact.website && (
-                                                                    <div className="flex items-center gap-1.5">
-                                                                        <MapPin className="h-3 w-3 flex-shrink-0" />
-                                                                        <span className="truncate max-w-32">
-                                                                            {contact.website.replace(/^https?:\/\//, '')}
-                                                                        </span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-
-                                                            {/* Notas (se existir) */}
-                                                            {contact.notes && (
-                                                                <div className="mt-2 p-2 bg-neutral-800/50 rounded text-xs text-neutral-400">
-                                                                    <div className="flex items-start gap-1.5">
-                                                                        <FileText className="h-3 w-3 mt-0.5 text-neutral-500 flex-shrink-0" />
-                                                                        <p className="truncate">
-                                                                            {contact.notes.length > 80
-                                                                                ? contact.notes.substring(0, 80) + '...'
-                                                                                : contact.notes}
-                                                                        </p>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </div>
+                                                        <h3 className="text-white font-medium mb-2">
+                                                            {contactSearch ? 'Nenhum contato encontrado' : 'Nenhum contato disponível'}
+                                                        </h3>
+                                                        <p className="text-neutral-400 text-sm">
+                                                            {contactSearch
+                                                                ? 'Tente buscar com termos diferentes ou verifique se há contatos ativos.'
+                                                                : 'Você precisa ter contatos ativos para enviar emails.'
+                                                            }
+                                                        </p>
+                                                        {contactSearch && (
+                                                            <button
+                                                                onClick={() => setContactSearch('')}
+                                                                className="mt-3 text-blue-400 hover:text-blue-300 text-sm"
+                                                            >
+                                                                Limpar busca
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
-                                            );
-                                        })
-                                    )}
-                                </div>
+                                            ) : (
+                                                filteredContacts.map((contact) => (
+                                                    <ContactItem
+                                                        key={contact.id}
+                                                        contact={{
+                                                            ...contact,
+                                                            phone: contact.phone || undefined
+                                                        }}
+                                                        isSelected={selectedContact?.id === contact.id}
+                                                        onContactClick={() => setSelectedContact(contact)}
+                                                        selectionMode="click"
+                                                    />
+                                                ))
+                                            )}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        {/* Search Listas */}
+                                        <div className="mb-4 flex-shrink-0">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h3 className="text-sm font-medium text-neutral-300">
+                                                    Listas de email disponíveis
+                                                </h3>
+                                                <div className="flex items-center gap-2 px-2 py-1 bg-neutral-800 rounded text-xs text-neutral-400">
+                                                    <List className="h-3 w-3" />
+                                                    <span>{filteredMailingLists.length} lista{filteredMailingLists.length !== 1 ? 's' : ''}</span>
+                                                </div>
+                                            </div>
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Buscar por nome ou descrição..."
+                                                    className="w-full pl-10 pr-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500"
+                                                    value={mailingListSearch}
+                                                    onChange={(e) => setMailingListSearch(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Mailing Lists */}
+                                        <div className="space-y-3 flex-1 overflow-y-auto min-h-0 mb-6">
+                                            {filteredMailingLists.length === 0 ? (
+                                                <div className="h-full flex items-center justify-center">
+                                                    <div className="text-center">
+                                                        <div className="w-16 h-16 mx-auto mb-4 bg-neutral-800 rounded-full flex items-center justify-center">
+                                                            <List className="w-8 h-8 text-neutral-500" />
+                                                        </div>
+                                                        <h3 className="text-white font-medium mb-2">
+                                                            {mailingListSearch ? 'Nenhuma lista encontrada' : 'Nenhuma lista disponível'}
+                                                        </h3>
+                                                        <p className="text-neutral-400 text-sm">
+                                                            {mailingListSearch
+                                                                ? 'Tente buscar com termos diferentes.'
+                                                                : 'Você precisa criar listas de email para usar esta opção.'
+                                                            }
+                                                        </p>
+                                                        {mailingListSearch && (
+                                                            <button
+                                                                onClick={() => setMailingListSearch('')}
+                                                                className="mt-3 text-blue-400 hover:text-blue-300 text-sm"
+                                                            >
+                                                                Limpar busca
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                filteredMailingLists.map((list) => {
+                                                    const isSelected = selectedMailingList?.id === list.id;
+                                                    const contactCount = list._count?.contacts || 0;
+
+                                                    return (
+                                                        <div
+                                                            key={list.id}
+                                                            className={`p-4 border rounded-lg cursor-pointer transition-all ${isSelected
+                                                                ? 'border-blue-500 bg-blue-900/20'
+                                                                : 'border-neutral-700 bg-neutral-800/50 hover:border-neutral-600 hover:bg-neutral-800'
+                                                                }`}
+                                                            onClick={() => setSelectedMailingList(list)}
+                                                        >
+                                                            <div className="flex items-center justify-between">
+                                                                <div className="flex-1">
+                                                                    <div className="flex items-center gap-3 mb-2">
+                                                                        <div
+                                                                            className="w-10 h-10 rounded-full flex items-center justify-center"
+                                                                            style={{ backgroundColor: list.color }}
+                                                                        >
+                                                                            <List className="w-5 h-5 text-white" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <h3 className="text-white font-medium">{list.name}</h3>
+                                                                            {list.description && (
+                                                                                <p className="text-neutral-400 text-sm">{list.description}</p>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1 text-xs text-neutral-400">
+                                                                        <Users className="w-3 h-3" />
+                                                                        <span>{contactCount} contato{contactCount !== 1 ? 's' : ''}</span>
+                                                                    </div>
+                                                                </div>
+                                                                {isSelected && (
+                                                                    <div className="ml-3">
+                                                                        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                                                                            <Check className="w-4 h-4 text-white" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+                                    </>
+                                )}
 
                                 {/* Navigation */}
                                 <div className="flex justify-end flex-shrink-0">
                                     <button
                                         onClick={() => setStep(2)}
-                                        disabled={!selectedContact}
-                                        className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        disabled={sendType === 'individual' ? !selectedContact : !selectedMailingList}
+                                        className="bg-blue-600 hover:bg-blue-700 disabled:bg-neutral-700 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
                                     >
                                         Próximo
                                         <ArrowRight className="w-4 h-4" />
@@ -1096,35 +868,14 @@ export default function SendEmail() {
 
                                     {/* Coluna direita - Preview */}
                                     <div className="w-1/2 flex flex-col min-h-0">
-                                        <div className="mb-4 flex-shrink-0">
-                                            <h3 className="text-sm font-medium text-neutral-300 mb-3">
-                                                Preview do Email
-                                            </h3>
-                                        </div>
-
-                                        <div className="flex-1 min-h-0">
-                                            {selectedContact && selectedTemplate ? (
-                                                <EmailPreview
-                                                    content={replaceVariables(selectedTemplate.htmlContent, selectedContact, selectedScript)}
-                                                    subject={selectedScript
-                                                        ? selectedScript.subject
-                                                        : replaceVariables(selectedTemplate.subject, selectedContact, selectedScript)}
-                                                    className="h-full"
-                                                />
-                                            ) : (
-                                                <div className="bg-gray-50 border border-gray-200 p-8 text-center text-gray-500 h-full flex items-center justify-center">
-                                                    <div>
-                                                        <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 flex items-center justify-center">
-                                                            <Eye className="w-8 h-8 text-gray-400" />
-                                                        </div>
-                                                        <p className="font-medium text-gray-700 mb-2">Preview não disponível</p>
-                                                        <p className="text-sm text-gray-500">
-                                                            Contato e template são necessários para gerar o preview
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
+                                        <EmailTemplatePreview
+                                            sendType={sendType}
+                                            selectedTemplate={selectedTemplate}
+                                            selectedScript={selectedScript}
+                                            contactForPreview={sendType === 'individual' ? selectedContact : previewContact}
+                                            smtpConfig={smtpConfig}
+                                            className="flex-1"
+                                        />
                                     </div>
                                 </div>
 
@@ -1160,17 +911,36 @@ export default function SendEmail() {
                                         {/* Resumo da seleção */}
                                         <div className="bg-neutral-800 rounded-lg p-4 border border-neutral-700">
                                             <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                                                <User className="w-4 h-4" />
+                                                {sendType === 'individual' ? (
+                                                    <User className="w-4 h-4" />
+                                                ) : (
+                                                    <List className="w-4 h-4" />
+                                                )}
                                                 Resumo da Seleção
                                             </h3>
                                             <div className="space-y-3 text-sm">
                                                 <div className="flex items-start gap-3">
                                                     <div className="w-2 h-2 rounded-full bg-blue-500 mt-2 flex-shrink-0"></div>
                                                     <div>
-                                                        <p className="text-neutral-400">Contato:</p>
-                                                        <p className="text-white font-medium">{selectedContact?.name}</p>
-                                                        <p className="text-neutral-400 text-xs">{selectedContact?.email}</p>
-                                                        <p className="text-neutral-400 text-xs">{selectedContact?.companyName}</p>
+                                                        {sendType === 'individual' ? (
+                                                            <>
+                                                                <p className="text-neutral-400">Contato:</p>
+                                                                <p className="text-white font-medium">{selectedContact?.name}</p>
+                                                                <p className="text-neutral-400 text-xs">{selectedContact?.email}</p>
+                                                                <p className="text-neutral-400 text-xs">{selectedContact?.companyName}</p>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <p className="text-neutral-400">Lista de Email:</p>
+                                                                <p className="text-white font-medium">{selectedMailingList?.name}</p>
+                                                                {selectedMailingList?.description && (
+                                                                    <p className="text-neutral-400 text-xs">{selectedMailingList.description}</p>
+                                                                )}
+                                                                <p className="text-neutral-400 text-xs">
+                                                                    {selectedMailingList?._count?.contacts || 0} contato{(selectedMailingList?._count?.contacts || 0) !== 1 ? 's' : ''}
+                                                                </p>
+                                                            </>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <div className="flex items-start gap-3">
@@ -1264,39 +1034,14 @@ export default function SendEmail() {
 
                                     {/* Coluna direita - Preview do email */}
                                     <div className="flex-1 flex flex-col min-h-0">
-                                        <div className="mb-4 flex items-center justify-between">
-                                            <h3 className="font-semibold text-white flex items-center gap-2">
-                                                <Eye className="w-4 h-4" />
-                                                Preview Final do Email
-                                            </h3>
-                                            <div className="text-xs text-neutral-400 bg-neutral-800 px-3 py-1 rounded">
-                                                Como o destinatário verá
-                                            </div>
-                                        </div>
-
-                                        <div className="flex-1 min-h-0">
-                                            {selectedContact && selectedTemplate ? (
-                                                <EmailPreview
-                                                    content={replaceVariables(selectedTemplate.htmlContent, selectedContact, selectedScript)}
-                                                    subject={selectedScript
-                                                        ? selectedScript.subject
-                                                        : replaceVariables(selectedTemplate.subject, selectedContact, selectedScript)}
-                                                    className="h-full"
-                                                />
-                                            ) : (
-                                                <div className="bg-gray-50 border border-gray-200 p-8 text-center text-gray-500 h-full flex items-center justify-center">
-                                                    <div>
-                                                        <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 flex items-center justify-center">
-                                                            <AlertCircle className="w-8 h-8 text-gray-400" />
-                                                        </div>
-                                                        <p className="font-medium text-gray-700 mb-2">Erro no preview</p>
-                                                        <p className="text-sm text-gray-500">
-                                                            Dados insuficientes para gerar o preview
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
+                                        <EmailTemplatePreview
+                                            sendType={sendType}
+                                            selectedTemplate={selectedTemplate}
+                                            selectedScript={selectedScript}
+                                            contactForPreview={sendType === 'individual' ? selectedContact : previewContact}
+                                            smtpConfig={smtpConfig}
+                                            className="flex-1"
+                                        />
                                     </div>
                                 </div>
 

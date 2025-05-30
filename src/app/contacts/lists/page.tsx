@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import MainLayout from '@/components/MainLayout';
+import ContactItem from '@/components/ContactItem';
 import { List, Plus, Edit3, Trash2, Users, Eye, X, Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 
@@ -21,7 +22,19 @@ interface Contact {
     id: string;
     name: string;
     email: string;
+    phone?: string;
+    position?: string;
     companyName: string;
+    website?: string;
+    niche?: string;
+    painPoints?: string;
+    previousInteraction?: string;
+    notes?: string;
+    isActive: boolean;
+    mailingListId?: string;
+    mailingList?: MailingList;
+    createdAt: string;
+    updatedAt: string;
 }
 
 const PREDEFINED_COLORS = [
@@ -880,16 +893,7 @@ export default function MailingLists() {
                                     ) : (
                                         <div className="space-y-3">
                                             {listContacts.map((contact) => (
-                                                <div
-                                                    key={contact.id}
-                                                    className="bg-neutral-800/50 rounded-lg p-3 flex items-center justify-between"
-                                                >
-                                                    <div>
-                                                        <h4 className="text-white font-medium">{contact.name}</h4>
-                                                        <p className="text-neutral-400 text-sm">{contact.email}</p>
-                                                        <p className="text-neutral-500 text-xs">{contact.companyName}</p>
-                                                    </div>
-                                                </div>
+                                                <ContactItem key={contact.id} contact={contact} />
                                             ))}
                                         </div>
                                     )}

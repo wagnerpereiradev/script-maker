@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import MainLayout from '@/components/MainLayout';
-import { Search, Filter, FileText, Calendar, Eye, Trash2, Plus, Edit3, Power, PowerOff, Check, X, Copy, Maximize2, Monitor } from 'lucide-react';
+import EmailTemplatePreview from '@/components/EmailTemplatePreview';
+import { Search, Filter, FileText, Calendar, Eye, Trash2, Plus, Edit3, Power, PowerOff, Check, X, Copy } from 'lucide-react';
 
 interface EmailTemplate {
     id: string;
@@ -14,6 +15,37 @@ interface EmailTemplate {
     isActive: boolean;
     createdAt: string;
     updatedAt: string;
+}
+
+interface Contact {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string;
+    position?: string;
+    companyName: string;
+    website?: string;
+    niche?: string;
+    painPoints?: string;
+    previousInteraction?: string;
+    notes?: string;
+    isActive: boolean;
+}
+
+interface SMTPConfig {
+    host?: string;
+    port?: number;
+    username?: string;
+    secure: boolean;
+    fromEmail?: string;
+    fromName?: string;
+    yourName?: string;
+    yourCompany?: string;
+    yourPhone?: string;
+    yourIndustry?: string;
+    yourPosition?: string;
+    yourWebsite?: string;
+    yourLocation?: string;
 }
 
 interface TemplatesResponse {
@@ -290,280 +322,6 @@ const CustomCheckbox = ({
     );
 };
 
-// Modal de preview em tela cheia
-const FullscreenPreviewModal = ({
-    isOpen,
-    onClose,
-    content,
-    subject
-}: {
-    isOpen: boolean;
-    onClose: () => void;
-    content: string;
-    subject: string;
-}) => {
-    const iframeRef = useRef<HTMLIFrameElement>(null);
-
-    useEffect(() => {
-        if (iframeRef.current && content && isOpen) {
-            const iframe = iframeRef.current;
-            const doc = iframe.contentDocument || iframe.contentWindow?.document;
-
-            if (doc) {
-                const htmlContent = `
-                    <!DOCTYPE html>
-                    <html lang="pt-BR">
-                    <head>
-                        <meta charset="UTF-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>Preview do Email</title>
-                        <style>
-                            * { box-sizing: border-box; }
-                            body {
-                                margin: 0;
-                                padding: 0;
-                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-                                line-height: 1.6;
-                                color: #333;
-                                background-color: #f8f9fa;
-                            }
-                            .email-wrapper {
-                                background-color: #f8f9fa;
-                                padding: 40px 20px;
-                                min-height: 100vh;
-                            }
-                            .email-container {
-                                max-width: 600px;
-                                margin: 0 auto;
-                                background-color: #ffffff;
-                                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                                border: 1px solid #e9ecef;
-                            }
-                            .email-header {
-                                background-color: #ffffff;
-                                border-bottom: 1px solid #e9ecef;
-                                padding: 20px;
-                            }
-                            .email-subject {
-                                font-size: 18px;
-                                font-weight: 600;
-                                color: #212529;
-                                margin: 0;
-                            }
-                            .email-body {
-                                padding: 30px;
-                                background-color: #ffffff;
-                            }
-                            img { max-width: 100%; height: auto; }
-                            table { border-collapse: collapse; width: 100%; }
-                            td, th { text-align: left; padding: 8px; }
-                            a { color: #0066cc; text-decoration: underline; }
-                            a:hover { text-decoration: none; }
-                            h1, h2, h3, h4, h5, h6 { margin-top: 0; margin-bottom: 16px; line-height: 1.25; }
-                            p { margin-top: 0; margin-bottom: 16px; }
-                            ul, ol { margin-top: 0; margin-bottom: 16px; padding-left: 30px; }
-                            li { margin-bottom: 4px; }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="email-wrapper">
-                            <div class="email-container">
-                                <div class="email-header">
-                                    <h1 class="email-subject">${subject}</h1>
-                                </div>
-                                <div class="email-body">
-                                    ${content}
-                                </div>
-                            </div>
-                        </div>
-                    </body>
-                    </html>
-                `;
-
-                doc.open();
-                doc.write(htmlContent);
-                doc.close();
-            }
-        }
-    }, [content, subject, isOpen]);
-
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-            <div className="bg-white w-full h-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
-                {/* Header do Modal */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
-                    <div className="flex items-center gap-3">
-                        <Monitor className="h-5 w-5 text-gray-600" />
-                        <h3 className="text-lg font-semibold text-gray-900">Preview do Template</h3>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
-                    >
-                        <X className="h-5 w-5 text-gray-600" />
-                    </button>
-                </div>
-
-                {/* Conteúdo do Modal */}
-                <div className="flex-1 bg-white">
-                    <iframe
-                        ref={iframeRef}
-                        className="w-full h-full border-none"
-                        sandbox="allow-same-origin"
-                        title="Preview Completo do Template"
-                    />
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// Componente de preview melhorado simulando email real
-const EmailPreview = ({
-    content,
-    subject,
-    className = ""
-}: {
-    content: string;
-    subject: string;
-    className?: string;
-}) => {
-    const iframeRef = useRef<HTMLIFrameElement>(null);
-    const [showFullscreen, setShowFullscreen] = useState(false);
-
-    useEffect(() => {
-        if (iframeRef.current && content) {
-            const iframe = iframeRef.current;
-            const doc = iframe.contentDocument || iframe.contentWindow?.document;
-
-            if (doc) {
-                const htmlContent = `
-                    <!DOCTYPE html>
-                    <html lang="pt-BR">
-                    <head>
-                        <meta charset="UTF-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>Preview</title>
-                        <style>
-                            * { box-sizing: border-box; }
-                            body {
-                                margin: 0;
-                                padding: 0;
-                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-                                line-height: 1.6;
-                                color: #333;
-                                background-color: #f8f9fa;
-                            }
-                            .email-wrapper {
-                                background-color: #f8f9fa;
-                                padding: 20px;
-                            }
-                            .email-container {
-                                max-width: 600px;
-                                margin: 0 auto;
-                                background-color: #ffffff;
-                                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-                                border: 1px solid #e9ecef;
-                            }
-                            .email-header {
-                                background-color: #ffffff;
-                                border-bottom: 1px solid #e9ecef;
-                                padding: 15px 20px;
-                            }
-                            .email-subject {
-                                font-size: 16px;
-                                font-weight: 600;
-                                color: #212529;
-                                margin: 0;
-                                overflow: hidden;
-                                text-overflow: ellipsis;
-                                white-space: nowrap;
-                            }
-                            .email-body {
-                                padding: 20px;
-                                background-color: #ffffff;
-                            }
-                            img { max-width: 100%; height: auto; }
-                            table { border-collapse: collapse; width: 100%; }
-                            td, th { text-align: left; padding: 8px; }
-                            a { color: #0066cc; text-decoration: underline; }
-                            a:hover { text-decoration: none; }
-                            h1, h2, h3, h4, h5, h6 { margin-top: 0; margin-bottom: 16px; line-height: 1.25; }
-                            p { margin-top: 0; margin-bottom: 16px; }
-                            ul, ol { margin-top: 0; margin-bottom: 16px; padding-left: 30px; }
-                            li { margin-bottom: 4px; }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="email-wrapper">
-                            <div class="email-container">
-                                <div class="email-header">
-                                    <div class="email-subject">${subject || 'Sem assunto'}</div>
-                                </div>
-                                <div class="email-body">
-                                    ${content}
-                                </div>
-                            </div>
-                        </div>
-                    </body>
-                    </html>
-                `;
-
-                doc.open();
-                doc.write(htmlContent);
-                doc.close();
-            }
-        }
-    }, [content, subject]);
-
-    if (!content) {
-        return (
-            <div className="bg-gray-50 border border-gray-200 p-8 text-center text-gray-500 min-h-[400px] flex items-center justify-center">
-                <div>
-                    <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 flex items-center justify-center">
-                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                    </div>
-                    <p className="font-medium text-gray-700 mb-2">Nenhum conteúdo para visualizar</p>
-                    <p className="text-sm text-gray-500">Digite o código HTML no editor para ver o preview</p>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <>
-            <div className={`bg-white overflow-hidden shadow-lg border border-gray-200 relative ${className}`}>
-                {/* Botão de tela cheia */}
-                <button
-                    onClick={() => setShowFullscreen(true)}
-                    className="absolute top-2 right-2 z-10 p-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white transition-all cursor-pointer"
-                    title="Ver em tela cheia"
-                >
-                    <Maximize2 className="h-4 w-4" />
-                </button>
-
-                <iframe
-                    ref={iframeRef}
-                    className="w-full h-full absolute top-0 left-0 bottom-0 right-0 border-none"
-                    sandbox="allow-same-origin"
-                    title="Preview do Template"
-                />
-            </div>
-
-            <FullscreenPreviewModal
-                isOpen={showFullscreen}
-                onClose={() => setShowFullscreen(false)}
-                content={content}
-                subject={subject}
-            />
-        </>
-    );
-};
-
 export default function Templates() {
     const [templates, setTemplates] = useState<EmailTemplate[]>([]);
     const [loading, setLoading] = useState(true);
@@ -588,6 +346,10 @@ export default function Templates() {
     const [deleting, setDeleting] = useState(false);
     const [showVariablesHelper, setShowVariablesHelper] = useState(false);
 
+    // Preview states
+    const [smtpConfig, setSMTPConfig] = useState<SMTPConfig | null>(null);
+    const [previewContact, setPreviewContact] = useState<Contact | null>(null);
+
     // Confirmation modal states
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [confirmAction, setConfirmAction] = useState<{
@@ -606,6 +368,79 @@ export default function Templates() {
         category: '',
         isActive: true
     });
+
+    // Buscar configurações SMTP
+    const fetchSMTPConfig = useCallback(async () => {
+        try {
+            const response = await fetch('/api/settings');
+            if (response.ok) {
+                const data = await response.json();
+                setSMTPConfig({
+                    host: data.settings.smtpHost,
+                    port: data.settings.smtpPort,
+                    username: data.settings.smtpUsername,
+                    secure: data.settings.smtpSecure,
+                    fromEmail: data.settings.smtpFromEmail,
+                    fromName: data.settings.smtpFromName,
+                    yourName: data.settings.yourName,
+                    yourCompany: data.settings.yourCompany,
+                    yourPhone: data.settings.yourPhone,
+                    yourIndustry: data.settings.yourIndustry,
+                    yourPosition: data.settings.yourPosition,
+                    yourWebsite: data.settings.yourWebsite,
+                    yourLocation: data.settings.yourLocation,
+                });
+            }
+        } catch (error) {
+            console.error('Erro ao buscar configurações SMTP:', error);
+        }
+    }, []);
+
+    // Buscar contato de exemplo para preview
+    const fetchPreviewContact = useCallback(async () => {
+        try {
+            const response = await fetch('/api/contacts?limit=1&isActive=true');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.contacts && data.contacts.length > 0) {
+                    setPreviewContact(data.contacts[0]);
+                } else {
+                    // Se não há contatos, criar um contato fictício para preview
+                    setPreviewContact({
+                        id: 'preview',
+                        name: 'João Silva',
+                        email: 'joao.silva@empresa.com',
+                        phone: '(11) 99999-9999',
+                        position: 'Diretor Comercial',
+                        companyName: 'Empresa Exemplo Ltda',
+                        website: 'https://empresa-exemplo.com',
+                        niche: 'Tecnologia',
+                        painPoints: 'Melhorar eficiência de vendas',
+                        isActive: true,
+                        previousInteraction: '',
+                        notes: ''
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao buscar contato de preview:', error);
+            // Criar contato fictício em caso de erro
+            setPreviewContact({
+                id: 'preview',
+                name: 'João Silva',
+                email: 'joao.silva@empresa.com',
+                phone: '(11) 99999-9999',
+                position: 'Diretor Comercial',
+                companyName: 'Empresa Exemplo Ltda',
+                website: 'https://empresa-exemplo.com',
+                niche: 'Tecnologia',
+                painPoints: 'Melhorar eficiência de vendas',
+                isActive: true,
+                previousInteraction: '',
+                notes: ''
+            });
+        }
+    }, []);
 
     const fetchTemplates = useCallback(async () => {
         setLoading(true);
@@ -636,7 +471,9 @@ export default function Templates() {
 
     useEffect(() => {
         fetchTemplates();
-    }, [fetchTemplates]);
+        fetchSMTPConfig();
+        fetchPreviewContact();
+    }, [fetchTemplates, fetchSMTPConfig, fetchPreviewContact]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -905,49 +742,66 @@ export default function Templates() {
         }
     };
 
-    // Variáveis categorizadas que são REALMENTE processadas no send-email
+    // Common variables for email templates
     const commonVariables = [
-        // === DADOS DO CONTATO/PROSPECT ===
-        { name: 'contactName', label: '👤 Nome do Contato', category: 'prospect', description: 'Nome da pessoa de contato (FUNCIONAL)' },
-        { name: 'contactFirstName', label: '👤 Primeiro Nome', category: 'prospect', description: 'Apenas o primeiro nome do contato (FUNCIONAL)' },
-        { name: 'contactEmail', label: '📧 Email do Contato', category: 'prospect', description: 'Email da pessoa de contato (FUNCIONAL)' },
-        { name: 'contactPhone', label: '📞 Telefone do Contato', category: 'prospect', description: 'Telefone da pessoa de contato (FUNCIONAL)' },
-        { name: 'contactPosition', label: '💼 Cargo do Contato', category: 'prospect', description: 'Cargo/posição da pessoa (FUNCIONAL)' },
+        // Dados do Contato e Empresa
+        { name: 'contactName', label: 'Nome do Contato', category: 'prospect' },
+        { name: 'contactFirstName', label: 'Primeiro Nome', category: 'prospect' },
+        { name: 'contactEmail', label: 'Email do Contato', category: 'prospect' },
+        { name: 'contactPhone', label: 'Telefone do Contato', category: 'prospect' },
+        { name: 'contactPosition', label: 'Cargo do Contato', category: 'prospect' },
+        { name: 'companyName', label: 'Nome da Empresa', category: 'prospect' },
+        { name: 'companyWebsite', label: 'Site da Empresa', category: 'prospect' },
+        { name: 'companySize', label: 'Tamanho da Empresa', category: 'prospect' },
+        { name: 'companyIndustry', label: 'Setor da Empresa', category: 'prospect' },
+        { name: 'companyLocation', label: 'Localização da Empresa', category: 'prospect' },
 
-        // === EMPRESA DO CONTATO ===
-        { name: 'companyName', label: '🏢 Empresa do Contato', category: 'prospect', description: 'Nome da empresa onde o contato trabalha (FUNCIONAL)' },
-        { name: 'companyWebsite', label: '🌐 Site da Empresa', category: 'prospect', description: 'Website da empresa do contato (FUNCIONAL)' },
-        { name: 'companyIndustry', label: '🏭 Setor da Empresa', category: 'prospect', description: 'Nicho/setor da empresa do contato (FUNCIONAL)' },
+        // Contexto do Negócio
+        { name: 'painPoints', label: 'Pontos de Dor', category: 'business' },
+        { name: 'solutions', label: 'Soluções Propostas', category: 'business' },
+        { name: 'benefits', label: 'Benefícios', category: 'business' },
+        { name: 'competitorAnalysis', label: 'Análise de Concorrentes', category: 'business' },
+        { name: 'roi', label: 'Retorno do Investimento', category: 'business' },
 
-        // === CONTEXTO DO NEGÓCIO ===
-        { name: 'painPoints', label: '😣 Pontos de Dor', category: 'business', description: 'Desafios identificados do contato ou script (FUNCIONAL)' },
-        { name: 'scriptBody', label: '📝 Corpo do Script', category: 'business', description: 'Conteúdo completo do script selecionado com quebras de linha preservadas (FUNCIONAL)' },
+        // Dados do Remetente
+        { name: 'senderName', label: 'Nome do Remetente', category: 'sender' },
+        { name: 'senderEmail', label: 'Email do Remetente', category: 'sender' },
+        { name: 'senderCompany', label: 'Empresa do Remetente', category: 'sender' },
+        { name: 'senderPhone', label: 'Telefone do Remetente', category: 'sender' },
+        { name: 'senderLinkedIn', label: 'LinkedIn do Remetente', category: 'sender' },
+        { name: 'yourName', label: 'Seu Nome', category: 'sender' },
+        { name: 'yourCompany', label: 'Sua Empresa', category: 'sender' },
+        { name: 'yourPhone', label: 'Seu Telefone', category: 'sender' },
+        { name: 'yourIndustry', label: 'Seu Setor', category: 'sender' },
+        { name: 'yourPosition', label: 'Seu Cargo', category: 'sender' },
+        { name: 'yourWebsite', label: 'Seu Website', category: 'sender' },
+        { name: 'yourLocation', label: 'Sua Localização', category: 'sender' },
 
-        // === CALL TO ACTION ===
-        { name: 'primaryCTA', label: '🎯 CTA Principal', category: 'cta', description: 'Call to action do script selecionado (FUNCIONAL)' },
+        // Call to Action e Agendamento
+        { name: 'primaryCTA', label: 'CTA Principal', category: 'cta' },
+        { name: 'secondaryCTA', label: 'CTA Secundário', category: 'cta' },
+        { name: 'ctaLink', label: 'Link do CTA', category: 'cta' },
+        { name: 'meetingLink', label: 'Link de Agendamento', category: 'meeting' },
+        { name: 'availableSlots', label: 'Horários Disponíveis', category: 'meeting' },
 
-        // === DADOS DO REMETENTE (SMTP) ===
-        { name: 'senderName', label: '👨‍💼 Seu Nome', category: 'sender', description: 'Nome configurado no SMTP (FUNCIONAL)' },
-        { name: 'senderEmail', label: '📧 Seu Email', category: 'sender', description: 'Email configurado no SMTP (FUNCIONAL)' },
-
-        // === DADOS DINÂMICOS ===
-        { name: 'currentDate', label: '📅 Data Atual', category: 'dynamic', description: 'Data de hoje em formato brasileiro (FUNCIONAL)' },
-        { name: 'currentTime', label: '⏰ Hora Atual', category: 'dynamic', description: 'Hora atual em formato brasileiro (FUNCIONAL)' },
-        { name: 'dayOfWeek', label: '📆 Dia da Semana', category: 'dynamic', description: 'Dia da semana atual em português (FUNCIONAL)' },
-
-        // === VARIÁVEIS DISPONÍVEIS MAS NÃO IMPLEMENTADAS ===
-        { name: 'companySize', label: '👥 Tamanho da Empresa', category: 'prospect', description: 'Número de funcionários (DISPONÍVEL - valor vazio)' },
-        { name: 'companyLocation', label: '📍 Localização da Empresa', category: 'prospect', description: 'Cidade/país da empresa (DISPONÍVEL - valor vazio)' },
-        { name: 'solutions', label: '💡 Soluções Propostas', category: 'business', description: 'Soluções oferecidas (DISPONÍVEL - valor vazio)' },
-        { name: 'benefits', label: '✨ Benefícios', category: 'business', description: 'Benefícios do serviço (DISPONÍVEL - valor vazio)' },
-        { name: 'competitorAnalysis', label: '⚔️ Análise de Concorrentes', category: 'business', description: 'Comparação com concorrentes (DISPONÍVEL - valor vazio)' },
-        { name: 'roi', label: '📈 ROI Estimado', category: 'business', description: 'Retorno sobre investimento (DISPONÍVEL - valor vazio)' },
-        { name: 'senderCompany', label: '🏢 Sua Empresa', category: 'sender', description: 'Empresa do remetente (DISPONÍVEL - valor vazio)' },
-        { name: 'senderPhone', label: '📞 Seu Telefone', category: 'sender', description: 'Telefone do remetente (DISPONÍVEL - valor vazio)' },
-        { name: 'senderLinkedIn', label: '🔗 Seu LinkedIn', category: 'sender', description: 'LinkedIn do remetente (DISPONÍVEL - valor vazio)' },
-        { name: 'secondaryCTA', label: '🎯 CTA Secundário', category: 'cta', description: 'Ação alternativa (DISPONÍVEL - valor vazio)' },
-        { name: 'ctaLink', label: '🔗 Link do CTA', category: 'cta', description: 'URL da ação (DISPONÍVEL - valor vazio)' },
+        // Dados Dinâmicos
+        { name: 'currentDate', label: 'Data Atual', category: 'dynamic' },
+        { name: 'currentTime', label: 'Hora Atual', category: 'dynamic' },
+        { name: 'dayOfWeek', label: 'Dia da Semana', category: 'dynamic' }
     ];
+
+    // Criar template fictício para preview
+    const mockTemplate = {
+        id: 'preview',
+        name: formData.name || 'Template de Exemplo',
+        description: formData.description,
+        subject: formData.subject || 'Assunto do Email',
+        htmlContent: formData.htmlContent || '<p>Conteúdo do email aparecerá aqui...</p>',
+        category: formData.category,
+        isActive: formData.isActive,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
 
     return (
         <MainLayout>
@@ -1431,11 +1285,16 @@ export default function Templates() {
                                         <p className="text-sm text-neutral-400">Visualização em tempo real</p>
                                     </div>
 
-                                    <div className="flex-1 overflow-y-auto">
-                                        <EmailPreview
-                                            content={formData.htmlContent}
-                                            subject={formData.subject}
-                                            className="min-h-full"
+                                    <div className="flex-1">
+                                        <EmailTemplatePreview
+                                            sendType="individual"
+                                            selectedTemplate={mockTemplate}
+                                            selectedScript={null}
+                                            contactForPreview={previewContact}
+                                            smtpConfig={smtpConfig}
+                                            className="h-full"
+                                            title="Preview do Template"
+                                            showRawVariables={true}
                                         />
                                     </div>
                                 </div>
@@ -1684,19 +1543,16 @@ export default function Templates() {
 
                                 {/* Right Side - Preview */}
                                 <div className="w-1/2 flex flex-col">
-                                    <div className="p-6 border-b border-neutral-700 bg-neutral-800/30">
-                                        <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
-                                            <Eye className="h-5 w-5 text-blue-400" />
-                                            Preview do Template
-                                        </h3>
-                                        <p className="text-sm text-neutral-400">Visualização em tempo real</p>
-                                    </div>
-
-                                    <div className="flex-1 overflow-y-auto">
-                                        <EmailPreview
-                                            content={formData.htmlContent}
-                                            subject={formData.subject}
-                                            className="min-h-full"
+                                    <div className="flex-1">
+                                        <EmailTemplatePreview
+                                            sendType="individual"
+                                            selectedTemplate={mockTemplate}
+                                            selectedScript={null}
+                                            contactForPreview={previewContact}
+                                            smtpConfig={smtpConfig}
+                                            className="h-full"
+                                            title="Preview do Template"
+                                            showRawVariables={true}
                                         />
                                     </div>
                                 </div>
