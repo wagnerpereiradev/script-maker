@@ -194,7 +194,7 @@ const FullscreenPreviewModal = ({
                     <iframe
                         ref={iframeRef}
                         className="w-full h-full border-none"
-                        sandbox="allow-same-origin"
+                        sandbox="allow-same-origin allow-scripts"
                         title="Preview Completo do Email"
                     />
                 </div>
@@ -331,7 +331,7 @@ const EmailPreview = ({
                 <iframe
                     ref={iframeRef}
                     className="w-full h-full min-h-[500px] border-none"
-                    sandbox="allow-same-origin"
+                    sandbox="allow-same-origin allow-scripts"
                     title="Preview"
                 />
             </div>
