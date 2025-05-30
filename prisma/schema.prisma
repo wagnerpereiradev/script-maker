@@ -193,8 +193,8 @@ model EmailSent {
   id                String       @id @default(cuid())
   
   // Referências
-  contactId         String
-  contact           Contact      @relation(fields: [contactId], references: [id])
+  contactId         String?
+  contact           Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
   scriptId          String?
   script            EmailScript? @relation(fields: [scriptId], references: [id])
   templateId        String?
