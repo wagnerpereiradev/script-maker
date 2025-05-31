@@ -75,6 +75,221 @@ interface SMTPConfig {
     yourLocation?: string;
 }
 
+// Função auxiliar para processar especificamente o assunto do script
+const processScriptSubject = (
+    scriptSubject: string,
+    contact: Contact | null,
+    smtpConfig: SMTPConfig | null
+): string => {
+    let processed = scriptSubject;
+
+    if (!processed) return '';
+
+    // Substituições do contato no assunto do script
+    if (contact) {
+        processed = processed.replace(/\{\{contactName\}\}/g, contact.name || '');
+        processed = processed.replace(/\{\{firstName\}\}/g, contact.name?.split(' ')[0] || '');
+        processed = processed.replace(/\{\{companyName\}\}/g, contact.companyName || '');
+        processed = processed.replace(/\{\{contactEmail\}\}/g, contact.email || '');
+        processed = processed.replace(/\{\{contactPhone\}\}/g, contact.phone || '');
+        processed = processed.replace(/\{\{position\}\}/g, contact.position || '');
+        processed = processed.replace(/\{\{website\}\}/g, contact.website || '');
+        processed = processed.replace(/\{\{niche\}\}/g, contact.niche || '');
+        processed = processed.replace(/\{\{painPoints\}\}/g, contact.painPoints || '');
+        processed = processed.replace(/\{\{previousInteraction\}\}/g, contact.previousInteraction || '');
+        processed = processed.replace(/\{\{notes\}\}/g, contact.notes || '');
+    }
+
+    // Aplicar dados do SMTP ao assunto do script
+    if (smtpConfig) {
+        processed = processed.replace(/\{\{yourName\}\}/g, smtpConfig.yourName || smtpConfig.fromName || '');
+        processed = processed.replace(/\{\{yourCompany\}\}/g, smtpConfig.yourCompany || '');
+        processed = processed.replace(/\{\{yourEmail\}\}/g, smtpConfig.fromEmail || '');
+        processed = processed.replace(/\{\{yourPhone\}\}/g, smtpConfig.yourPhone || '');
+        processed = processed.replace(/\{\{yourIndustry\}\}/g, smtpConfig.yourIndustry || '');
+        processed = processed.replace(/\{\{yourPosition\}\}/g, smtpConfig.yourPosition || '');
+        processed = processed.replace(/\{\{yourWebsite\}\}/g, smtpConfig.yourWebsite || '');
+        processed = processed.replace(/\{\{yourLocation\}\}/g, smtpConfig.yourLocation || '');
+        processed = processed.replace(/\{\{fromName\}\}/g, smtpConfig.fromName || '');
+        processed = processed.replace(/\{\{fromEmail\}\}/g, smtpConfig.fromEmail || '');
+    }
+
+    // Aplicar dados dinâmicos ao assunto do script
+    const now = new Date();
+    processed = processed.replace(/\{\{currentDate\}\}/g, now.toLocaleDateString('pt-BR'));
+    processed = processed.replace(/\{\{currentTime\}\}/g, now.toLocaleTimeString('pt-BR'));
+    processed = processed.replace(/\{\{currentYear\}\}/g, now.getFullYear().toString());
+
+    return processed;
+};
+
+// Função para processar template com substituição de variáveis
+const processTemplate = (
+    template: string,
+    contact: Contact | null,
+    script: Script | null,
+    smtpConfig: SMTPConfig | null
+): string => {
+    let processed = template;
+
+    if (!processed) return '';
+
+    // Substituições do contato
+    if (contact) {
+        processed = processed.replace(/\{\{contactName\}\}/g, contact.name || '');
+        processed = processed.replace(/\{\{firstName\}\}/g, contact.name?.split(' ')[0] || '');
+        processed = processed.replace(/\{\{companyName\}\}/g, contact.companyName || '');
+        processed = processed.replace(/\{\{contactEmail\}\}/g, contact.email || '');
+        processed = processed.replace(/\{\{contactPhone\}\}/g, contact.phone || '');
+        processed = processed.replace(/\{\{position\}\}/g, contact.position || '');
+        processed = processed.replace(/\{\{website\}\}/g, contact.website || '');
+        processed = processed.replace(/\{\{niche\}\}/g, contact.niche || '');
+        processed = processed.replace(/\{\{painPoints\}\}/g, contact.painPoints || '');
+        processed = processed.replace(/\{\{previousInteraction\}\}/g, contact.previousInteraction || '');
+        processed = processed.replace(/\{\{notes\}\}/g, contact.notes || '');
+    } else {
+        // Limpar tags de contato se não houver contato
+        processed = processed.replace(/\{\{contactName\}\}/g, '[Nome do Contato]');
+        processed = processed.replace(/\{\{firstName\}\}/g, '[Primeiro Nome]');
+        processed = processed.replace(/\{\{companyName\}\}/g, '[Nome da Empresa]');
+        processed = processed.replace(/\{\{contactEmail\}\}/g, '[Email do Contato]');
+        processed = processed.replace(/\{\{contactPhone\}\}/g, '[Telefone]');
+        processed = processed.replace(/\{\{position\}\}/g, '[Cargo]');
+        processed = processed.replace(/\{\{website\}\}/g, '[Website]');
+        processed = processed.replace(/\{\{niche\}\}/g, '[Nicho]');
+        processed = processed.replace(/\{\{painPoints\}\}/g, '[Pontos de Dor]');
+        processed = processed.replace(/\{\{previousInteraction\}\}/g, '[Interação Anterior]');
+        processed = processed.replace(/\{\{notes\}\}/g, '[Observações]');
+    }
+
+    // Substituições do script
+    if (script) {
+        // Processar o assunto do script com as variáveis dinâmicas
+        let processedScriptSubject = script.subject || '';
+        // Usar a função auxiliar para processar o assunto do script
+        processedScriptSubject = processScriptSubject(processedScriptSubject, contact, smtpConfig);
+
+        processed = processed.replace(/\{\{scriptSubject\}\}/g, processedScriptSubject);
+
+        // Converter markdown para HTML para scriptBody
+        if (script.body) {
+            try {
+                // Primeiro processar as variáveis dinâmicas no body do script
+                let processedScriptBody = script.body;
+                if (contact) {
+                    processedScriptBody = processedScriptBody.replace(/\{\{contactName\}\}/g, contact.name || '');
+                    processedScriptBody = processedScriptBody.replace(/\{\{firstName\}\}/g, contact.name?.split(' ')[0] || '');
+                    processedScriptBody = processedScriptBody.replace(/\{\{companyName\}\}/g, contact.companyName || '');
+                    processedScriptBody = processedScriptBody.replace(/\{\{contactEmail\}\}/g, contact.email || '');
+                    processedScriptBody = processedScriptBody.replace(/\{\{contactPhone\}\}/g, contact.phone || '');
+                    processedScriptBody = processedScriptBody.replace(/\{\{position\}\}/g, contact.position || '');
+                    processedScriptBody = processedScriptBody.replace(/\{\{website\}\}/g, contact.website || '');
+                    processedScriptBody = processedScriptBody.replace(/\{\{niche\}\}/g, contact.niche || '');
+                    processedScriptBody = processedScriptBody.replace(/\{\{painPoints\}\}/g, contact.painPoints || '');
+                    processedScriptBody = processedScriptBody.replace(/\{\{previousInteraction\}\}/g, contact.previousInteraction || '');
+                    processedScriptBody = processedScriptBody.replace(/\{\{notes\}\}/g, contact.notes || '');
+                }
+                // Aplicar dados do SMTP ao body do script
+                if (smtpConfig) {
+                    processedScriptBody = processedScriptBody.replace(/\{\{yourName\}\}/g, smtpConfig.yourName || smtpConfig.fromName || '');
+                    processedScriptBody = processedScriptBody.replace(/\{\{yourCompany\}\}/g, smtpConfig.yourCompany || '');
+                    processedScriptBody = processedScriptBody.replace(/\{\{yourEmail\}\}/g, smtpConfig.fromEmail || '');
+                    processedScriptBody = processedScriptBody.replace(/\{\{yourPhone\}\}/g, smtpConfig.yourPhone || '');
+                    processedScriptBody = processedScriptBody.replace(/\{\{yourIndustry\}\}/g, smtpConfig.yourIndustry || '');
+                    processedScriptBody = processedScriptBody.replace(/\{\{yourPosition\}\}/g, smtpConfig.yourPosition || '');
+                    processedScriptBody = processedScriptBody.replace(/\{\{yourWebsite\}\}/g, smtpConfig.yourWebsite || '');
+                    processedScriptBody = processedScriptBody.replace(/\{\{yourLocation\}\}/g, smtpConfig.yourLocation || '');
+                }
+                // Aplicar dados dinâmicos ao body do script
+                const now = new Date();
+                processedScriptBody = processedScriptBody.replace(/\{\{currentDate\}\}/g, now.toLocaleDateString('pt-BR'));
+                processedScriptBody = processedScriptBody.replace(/\{\{currentTime\}\}/g, now.toLocaleTimeString('pt-BR'));
+                processedScriptBody = processedScriptBody.replace(/\{\{currentYear\}\}/g, now.getFullYear().toString());
+
+                // Agora converter markdown para HTML
+                const htmlBody = processedScriptBody
+                    // Quebras de linha
+                    .replace(/\n/g, '<br>')
+                    // Negrito
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    // Itálico
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    // Links
+                    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+
+                processed = processed.replace(/\{\{scriptBody\}\}/g, htmlBody);
+            } catch (error) {
+                console.error('Erro ao converter markdown:', error);
+                // Fallback: usar o texto sem conversão
+                processed = processed.replace(/\{\{scriptBody\}\}/g, script.body.replace(/\n/g, '<br>'));
+            }
+        }
+
+        processed = processed.replace(/\{\{emailType\}\}/g, script.emailType || '');
+        processed = processed.replace(/\{\{tone\}\}/g, script.tone || '');
+        processed = processed.replace(/\{\{length\}\}/g, script.length || '');
+        processed = processed.replace(/\{\{callToAction\}\}/g, script.callToAction || '');
+
+        // Dados do prospect do script
+        if (script.prospectData) {
+            processed = processed.replace(/\{\{scriptContactName\}\}/g, script.prospectData.contactName || '');
+            processed = processed.replace(/\{\{scriptCompanyName\}\}/g, script.prospectData.companyName || '');
+            processed = processed.replace(/\{\{scriptNiche\}\}/g, script.prospectData.niche || '');
+            processed = processed.replace(/\{\{scriptPosition\}\}/g, script.prospectData.position || '');
+            processed = processed.replace(/\{\{scriptWebsite\}\}/g, script.prospectData.website || '');
+            processed = processed.replace(/\{\{scriptPainPoints\}\}/g, script.prospectData.painPoints || '');
+        }
+    } else {
+        // Limpar tags de script se não houver script
+        processed = processed.replace(/\{\{scriptSubject\}\}/g, '');
+        processed = processed.replace(/\{\{scriptBody\}\}/g, '');
+        processed = processed.replace(/\{\{emailType\}\}/g, '');
+        processed = processed.replace(/\{\{tone\}\}/g, '');
+        processed = processed.replace(/\{\{length\}\}/g, '');
+        processed = processed.replace(/\{\{callToAction\}\}/g, '');
+        processed = processed.replace(/\{\{scriptContactName\}\}/g, '');
+        processed = processed.replace(/\{\{scriptCompanyName\}\}/g, '');
+        processed = processed.replace(/\{\{scriptNiche\}\}/g, '');
+        processed = processed.replace(/\{\{scriptPosition\}\}/g, '');
+        processed = processed.replace(/\{\{scriptWebsite\}\}/g, '');
+        processed = processed.replace(/\{\{scriptPainPoints\}\}/g, '');
+    }
+
+    // Substituições das configurações SMTP/remetente
+    if (smtpConfig) {
+        processed = processed.replace(/\{\{yourName\}\}/g, smtpConfig.yourName || smtpConfig.fromName || '');
+        processed = processed.replace(/\{\{yourCompany\}\}/g, smtpConfig.yourCompany || '');
+        processed = processed.replace(/\{\{yourEmail\}\}/g, smtpConfig.fromEmail || '');
+        processed = processed.replace(/\{\{yourPhone\}\}/g, smtpConfig.yourPhone || '');
+        processed = processed.replace(/\{\{yourIndustry\}\}/g, smtpConfig.yourIndustry || '');
+        processed = processed.replace(/\{\{yourPosition\}\}/g, smtpConfig.yourPosition || '');
+        processed = processed.replace(/\{\{yourWebsite\}\}/g, smtpConfig.yourWebsite || '');
+        processed = processed.replace(/\{\{yourLocation\}\}/g, smtpConfig.yourLocation || '');
+        processed = processed.replace(/\{\{fromName\}\}/g, smtpConfig.fromName || '');
+        processed = processed.replace(/\{\{fromEmail\}\}/g, smtpConfig.fromEmail || '');
+    } else {
+        // Limpar tags de configuração se não houver dados
+        processed = processed.replace(/\{\{yourName\}\}/g, '[Seu Nome]');
+        processed = processed.replace(/\{\{yourCompany\}\}/g, '[Sua Empresa]');
+        processed = processed.replace(/\{\{yourEmail\}\}/g, '[Seu Email]');
+        processed = processed.replace(/\{\{yourPhone\}\}/g, '[Seu Telefone]');
+        processed = processed.replace(/\{\{yourIndustry\}\}/g, '[Seu Setor]');
+        processed = processed.replace(/\{\{yourPosition\}\}/g, '[Seu Cargo]');
+        processed = processed.replace(/\{\{yourWebsite\}\}/g, '[Seu Website]');
+        processed = processed.replace(/\{\{yourLocation\}\}/g, '[Sua Localização]');
+        processed = processed.replace(/\{\{fromName\}\}/g, '[Nome do Remetente]');
+        processed = processed.replace(/\{\{fromEmail\}\}/g, '[Email do Remetente]');
+    }
+
+    // Tags gerais
+    const now = new Date();
+    processed = processed.replace(/\{\{currentDate\}\}/g, now.toLocaleDateString('pt-BR'));
+    processed = processed.replace(/\{\{currentTime\}\}/g, now.toLocaleTimeString('pt-BR'));
+    processed = processed.replace(/\{\{currentYear\}\}/g, now.getFullYear().toString());
+
+    return processed;
+};
+
 export default function SendEmail() {
     const [step, setStep] = useState(1);
     const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
@@ -238,13 +453,20 @@ export default function SendEmail() {
     useEffect(() => {
         const contactForPreview = sendType === 'individual' ? selectedContact : previewContact;
 
-        if (contactForPreview && selectedTemplate &&
-            selectedTemplate.subject && selectedTemplate.htmlContent) {
+        if (selectedTemplate && selectedTemplate.subject && selectedTemplate.htmlContent) {
             try {
-                const processedSubject = selectedScript
-                    ? selectedScript.subject
-                    : selectedTemplate.subject;
-                const processedContent = selectedTemplate.htmlContent;
+                // Processar assunto
+                let processedSubject = '';
+                if (selectedScript && selectedScript.subject) {
+                    // Se há script, usar o assunto do script processado com a função específica
+                    processedSubject = processScriptSubject(selectedScript.subject, contactForPreview, smtpConfig);
+                } else {
+                    // Senão, usar o assunto do template processado
+                    processedSubject = processTemplate(selectedTemplate.subject, contactForPreview, selectedScript, smtpConfig);
+                }
+
+                // Processar conteúdo HTML
+                const processedContent = processTemplate(selectedTemplate.htmlContent, contactForPreview, selectedScript, smtpConfig);
 
                 setFinalSubject(processedSubject);
                 setFinalHtmlContent(processedContent);
@@ -257,7 +479,7 @@ export default function SendEmail() {
             setFinalSubject('');
             setFinalHtmlContent('');
         }
-    }, [selectedContact, previewContact, selectedScript, selectedTemplate, sendType]);
+    }, [selectedContact, previewContact, selectedScript, selectedTemplate, sendType, smtpConfig]);
 
     // Send email function
     const sendEmail = async () => {
