@@ -7,6 +7,9 @@ module.exports = {
     ],
     theme: {
         extend: {
+            screens: {
+                'xs': '475px',
+            },
             fontFamily: {
                 'geist': ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
                 'geist-mono': ['var(--font-geist-mono)', 'monospace'],
