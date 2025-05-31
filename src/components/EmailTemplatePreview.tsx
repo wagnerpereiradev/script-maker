@@ -218,14 +218,81 @@ const processTemplate = (
 
                 // Agora converter markdown para HTML
                 const htmlBody = processedScriptBody
-                    // Quebras de linha
-                    .replace(/\n/g, '<br>')
+                    // Processar tabelas markdown completas
+                    .replace(/(?:^\|.+\|.*\n)+/gm, (match) => {
+                        const lines = match.trim().split('\n').filter(line => line.trim() && line.includes('|'));
+
+                        if (lines.length < 2) return match;
+
+                        let tableHtml = '<table style="border-collapse: collapse; width: 100%; margin: 16px 0; border: 1px solid #e9ecef; font-size: 14px;">';
+                        let isFirstDataRow = true;
+
+                        for (let i = 0; i < lines.length; i++) {
+                            const line = lines[i].trim();
+
+                            // Verificar se é linha separadora (---, :--:, etc)
+                            if (line.match(/^\|[\s]*:?-+:?[\s]*(\|[\s]*:?-+:?[\s]*)*\|?$/)) {
+                                continue; // Pular linha separadora
+                            }
+
+                            // Processar células da linha
+                            const cells = line.split('|')
+                                .slice(1, -1) // Remove primeiro e último elementos vazios
+                                .map(cell => cell.trim());
+
+                            if (cells.length === 0) continue;
+
+                            // Primeira linha não separadora é cabeçalho
+                            if (isFirstDataRow) {
+                                tableHtml += '<tr>';
+                                cells.forEach(cell => {
+                                    tableHtml += `<th style="text-align: left; padding: 12px 16px; border: 1px solid #e9ecef; background-color: #f8f9fa; font-weight: 600; color: #495057; vertical-align: top;">${cell}</th>`;
+                                });
+                                tableHtml += '</tr>';
+                                isFirstDataRow = false;
+                            } else {
+                                tableHtml += '<tr>';
+                                cells.forEach((cell, index) => {
+                                    const bgColor = index % 2 === 0 ? '#ffffff' : '#f8f9fa';
+                                    tableHtml += `<td style="text-align: left; padding: 12px 16px; border: 1px solid #e9ecef; background-color: ${bgColor}; vertical-align: top;">${cell}</td>`;
+                                });
+                                tableHtml += '</tr>';
+                            }
+                        }
+
+                        tableHtml += '</table>';
+                        return tableHtml;
+                    })
+                    // Títulos
+                    .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+                    .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+                    .replace(/^# (.*$)/gm, '<h1>$1</h1>')
                     // Negrito
                     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                     // Itálico
                     .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                    // Links
-                    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+                    // Links [texto](url)
+                    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #0066cc; text-decoration: underline;">$1</a>')
+                    // Links simples (URLs)
+                    .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color: #0066cc; text-decoration: underline;">$1</a>')
+                    // Listas não ordenadas (-, *, +) - SEM <br>
+                    .replace(/^[\s]*[-\*\+][\s]+(.+)$/gm, '<li>$1</li>')
+                    // Listas ordenadas (1. 2. 3.) - SEM <br>
+                    .replace(/^[\s]*\d+\.[\s]+(.+)$/gm, '<li>$1</li>')
+                    // Envolver listas consecutivas em tags <ul> e <ol>
+                    .replace(/(<li>.*?<\/li>)(?:\s*<li>.*?<\/li>)*/g, (match) => {
+                        // Verificar se é lista ordenada checando o conteúdo original
+                        const hasOrderedItems = processedScriptBody.match(/^\s*\d+\./m);
+                        return hasOrderedItems ? `<ol>${match}</ol>` : `<ul>${match}</ul>`;
+                    })
+                    // Quebras de linha para parágrafos (apenas no final, e não em excesso)
+                    .replace(/\n\s*\n/g, '</p><p>')
+                    .replace(/^(.)/g, '<p>$1')
+                    .replace(/(.)$/g, '$1</p>')
+                    // Limpar parágrafos vazios e duplicados
+                    .replace(/<p><\/p>/g, '')
+                    .replace(/<p>(<[^>]+>)/g, '$1')
+                    .replace(/(<\/[^>]+>)<\/p>/g, '$1');
 
                 processed = processed.replace(/\{\{scriptBody\}\}/g, htmlBody);
             } catch (error) {
@@ -392,14 +459,34 @@ const FullscreenPreviewModal = ({
                                 background-color: #ffffff;
                             }
                             img { max-width: 100%; height: auto; }
-                            table { border-collapse: collapse; width: 100%; }
-                            td, th { text-align: left; padding: 8px; }
                             a { color: #0066cc; text-decoration: underline; }
                             a:hover { text-decoration: none; }
-                            h1, h2, h3, h4, h5, h6 { margin-top: 0; margin-bottom: 16px; line-height: 1.25; }
+                            h1, h2, h3, h4, h5, h6 { 
+                                margin-top: 24px; 
+                                margin-bottom: 16px; 
+                                line-height: 1.25; 
+                                color: #212529;
+                                font-weight: 600;
+                            }
+                            h1 { font-size: 24px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px; }
+                            h2 { font-size: 20px; }
+                            h3 { font-size: 18px; }
                             p { margin-top: 0; margin-bottom: 16px; }
-                            ul, ol { margin-top: 0; margin-bottom: 16px; padding-left: 30px; }
-                            li { margin-bottom: 4px; }
+                            ul, ol { 
+                                margin-top: 0; 
+                                margin-bottom: 16px; 
+                                padding-left: 30px; 
+                            }
+                            li { 
+                                margin-bottom: 8px; 
+                                line-height: 1.5;
+                            }
+                            ul li {
+                                list-style-type: disc;
+                            }
+                            ol li {
+                                list-style-type: decimal;
+                            }
                         </style>
                     </head>
                     <body>
@@ -522,14 +609,34 @@ const EmailPreview = ({
                                 background-color: #ffffff;
                             }
                             img { max-width: 100%; height: auto; }
-                            table { border-collapse: collapse; width: 100%; }
-                            td, th { text-align: left; padding: 8px; }
                             a { color: #0066cc; text-decoration: underline; }
                             a:hover { text-decoration: none; }
-                            h1, h2, h3, h4, h5, h6 { margin-top: 0; margin-bottom: 16px; line-height: 1.25; }
+                            h1, h2, h3, h4, h5, h6 { 
+                                margin-top: 24px; 
+                                margin-bottom: 16px; 
+                                line-height: 1.25; 
+                                color: #212529;
+                                font-weight: 600;
+                            }
+                            h1 { font-size: 24px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px; }
+                            h2 { font-size: 20px; }
+                            h3 { font-size: 18px; }
                             p { margin-top: 0; margin-bottom: 16px; }
-                            ul, ol { margin-top: 0; margin-bottom: 16px; padding-left: 30px; }
-                            li { margin-bottom: 4px; }
+                            ul, ol { 
+                                margin-top: 0; 
+                                margin-bottom: 16px; 
+                                padding-left: 30px; 
+                            }
+                            li { 
+                                margin-bottom: 8px; 
+                                line-height: 1.5;
+                            }
+                            ul li {
+                                list-style-type: disc;
+                            }
+                            ol li {
+                                list-style-type: decimal;
+                            }
                         </style>
                     </head>
                     <body>
