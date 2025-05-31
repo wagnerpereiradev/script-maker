@@ -227,8 +227,10 @@ export default function Settings() {
                                     >
                                         <option value="gpt-4o-mini">GPT-4o Mini</option>
                                         <option value="gpt-4o">GPT-4o</option>
-                                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                        <option value="gpt-4.1">GPT-4.1</option>
+                                        <option value="o4-mini">O4 Mini</option>
+                                        <option value="chatgpt-4o-latest">ChatGPT-4o-latest</option>
+                                        <option value="o3-mini">O3 Mini</option>
                                     </select>
                                 </div>
 
