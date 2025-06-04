@@ -1060,147 +1060,229 @@ export default function CreateScript() {
                                         </div>
 
                                         {/* Variáveis Disponíveis */}
-                                        <div className="bg-gradient-to-r from-blue-900/20 to-indigo-900/20 rounded-lg p-4 border border-blue-700/30">
-                                            <h4 className="text-sm font-semibold text-blue-300 mb-3 flex items-center gap-2">
-                                                <Target className="h-4 w-4 text-blue-400" />
-                                                Variáveis para Personalização:
-                                            </h4>
-                                            <p className="text-blue-200/80 text-xs mb-4">
-                                                Selecione as variáveis que deseja usar no script. Elas serão substituídas automaticamente pelos dados reais.
-                                            </p>
-
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                                                <div>
-                                                    <h5 className="text-blue-200 font-medium mb-3 flex items-center justify-between">
-                                                        <span>Suas Informações:</span>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                const userVars = ['yourName', 'yourCompany', 'yourPosition', 'yourIndustry', 'yourPhone', 'yourWebsite', 'yourLocation'];
-                                                                const isAllSelected = userVars.every(v => selectedVariables.user.includes(v));
-                                                                setSelectedVariables(prev => ({
-                                                                    ...prev,
-                                                                    user: isAllSelected ? [] : userVars
-                                                                }));
-                                                            }}
-                                                            className="text-blue-300 hover:text-blue-200 text-xs underline"
-                                                        >
-                                                            {selectedVariables.user.length === 7 ? 'Desmarcar todas' : 'Selecionar todas'}
-                                                        </button>
-                                                    </h5>
-                                                    <div className="space-y-2">
-                                                        {[
-                                                            { key: 'yourName', label: 'Seu nome', value: userData.yourName },
-                                                            { key: 'yourCompany', label: 'Sua empresa', value: userData.yourCompany },
-                                                            { key: 'yourPosition', label: 'Seu cargo', value: userData.yourPosition },
-                                                            { key: 'yourIndustry', label: 'Seu setor', value: userData.yourIndustry },
-                                                            { key: 'yourPhone', label: 'Seu telefone', value: userData.yourPhone },
-                                                            { key: 'yourWebsite', label: 'Seu website', value: userData.yourWebsite },
-                                                            { key: 'yourLocation', label: 'Sua localização', value: userData.yourLocation }
-                                                        ].map(variable => (
-                                                            <label key={variable.key} className="flex items-center gap-2 cursor-pointer">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={selectedVariables.user.includes(variable.key)}
-                                                                    onChange={(e) => {
-                                                                        setSelectedVariables(prev => ({
-                                                                            ...prev,
-                                                                            user: e.target.checked
-                                                                                ? [...prev.user, variable.key]
-                                                                                : prev.user.filter(v => v !== variable.key)
-                                                                        }));
-                                                                    }}
-                                                                    className="w-3 h-3 rounded border border-blue-500/50 bg-transparent checked:bg-blue-500 focus:ring-blue-500 focus:ring-1"
-                                                                />
-                                                                <div className="flex-1">
-                                                                    <code className="text-blue-300">{'{{' + variable.key + '}}'}</code>
-                                                                    <span className="text-blue-200/80 ml-1">- {variable.label}</span>
-                                                                    {variable.value && (
-                                                                        <div className="text-blue-200/60 text-xs mt-0.5 truncate">
-                                                                            Valor: {variable.value}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </label>
-                                                        ))}
+                                        <div className="space-y-5">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg shadow-lg">
+                                                        <Target className="h-5 w-5 text-white" />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="text-white font-bold">Variáveis de Personalização</h4>
+                                                        <p className="text-neutral-400 text-sm">Selecione as variáveis para incluir no script</p>
                                                     </div>
                                                 </div>
-                                                <div>
-                                                    <h5 className="text-blue-200 font-medium mb-3 flex items-center justify-between">
-                                                        <span>Informações do Contato:</span>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                const contactVars = ['contactName', 'contactFirstName', 'contactEmail', 'contactPosition', 'companyName', 'companyWebsite', 'companyIndustry'];
-                                                                const isAllSelected = contactVars.every(v => selectedVariables.contact.includes(v));
-                                                                setSelectedVariables(prev => ({
-                                                                    ...prev,
-                                                                    contact: isAllSelected ? [] : contactVars
-                                                                }));
-                                                            }}
-                                                            className="text-blue-300 hover:text-blue-200 text-xs underline"
-                                                        >
-                                                            {selectedVariables.contact.length === 7 ? 'Desmarcar todas' : 'Selecionar todas'}
-                                                        </button>
-                                                    </h5>
-                                                    <div className="space-y-2">
+                                                {(selectedVariables.user.length > 0 || selectedVariables.contact.length > 0) && (
+                                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full border border-blue-500/30">
+                                                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                                                        <span className="text-blue-300 text-sm font-medium">
+                                                            {selectedVariables.user.length + selectedVariables.contact.length} ativas
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Suas Informações */}
+                                            <div className="relative">
+                                                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-teal-500/5 rounded-2xl"></div>
+                                                <div className="relative p-5 border border-emerald-500/20 rounded-2xl backdrop-blur-sm">
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="relative">
+                                                                <div className="absolute inset-0 bg-emerald-500 rounded-lg blur opacity-30"></div>
+                                                                <div className="relative p-2 bg-emerald-500/20 rounded-lg border border-emerald-500/30">
+                                                                    <User className="h-4 w-4 text-emerald-400" />
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <h5 className="text-emerald-200 font-semibold">Suas Informações</h5>
+                                                                <p className="text-emerald-300/60 text-xs">
+                                                                    {selectedVariables.user.length} de 7 selecionadas
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setSelectedVariables(prev => ({
+                                                                        ...prev,
+                                                                        user: []
+                                                                    }));
+                                                                }}
+                                                                className="px-3 py-1 text-xs font-medium text-emerald-300 hover:text-emerald-200 bg-emerald-900/30 hover:bg-emerald-900/50 rounded-full transition-all border border-emerald-700/30 hover:border-emerald-600/50"
+                                                            >
+                                                                Limpar
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const userVars = ['yourName', 'yourCompany', 'yourPosition', 'yourIndustry', 'yourPhone', 'yourWebsite', 'yourLocation'];
+                                                                    setSelectedVariables(prev => ({
+                                                                        ...prev,
+                                                                        user: userVars
+                                                                    }));
+                                                                }}
+                                                                className="px-3 py-1 text-xs font-medium text-emerald-200 bg-emerald-600/30 hover:bg-emerald-600/40 rounded-full transition-all border border-emerald-500/30 hover:border-emerald-400/50"
+                                                            >
+                                                                Todas
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex flex-wrap gap-2">
                                                         {[
-                                                            { key: 'contactName', label: 'Nome completo' },
-                                                            { key: 'contactFirstName', label: 'Primeiro nome' },
-                                                            { key: 'contactEmail', label: 'Email do contato' },
-                                                            { key: 'contactPosition', label: 'Cargo do contato' },
-                                                            { key: 'companyName', label: 'Nome da empresa' },
-                                                            { key: 'companyWebsite', label: 'Website da empresa' },
-                                                            { key: 'companyIndustry', label: 'Setor da empresa' }
-                                                        ].map(variable => (
-                                                            <label key={variable.key} className="flex items-center gap-2 cursor-pointer">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={selectedVariables.contact.includes(variable.key)}
-                                                                    onChange={(e) => {
+                                                            { key: 'yourName', hasValue: !!userData.yourName },
+                                                            { key: 'yourCompany', hasValue: !!userData.yourCompany },
+                                                            { key: 'yourPosition', hasValue: !!userData.yourPosition },
+                                                            { key: 'yourIndustry', hasValue: !!userData.yourIndustry },
+                                                            { key: 'yourPhone', hasValue: !!userData.yourPhone },
+                                                            { key: 'yourWebsite', hasValue: !!userData.yourWebsite },
+                                                            { key: 'yourLocation', hasValue: !!userData.yourLocation }
+                                                        ].map(variable => {
+                                                            const isSelected = selectedVariables.user.includes(variable.key);
+                                                            return (
+                                                                <button
+                                                                    key={variable.key}
+                                                                    type="button"
+                                                                    onClick={() => {
                                                                         setSelectedVariables(prev => ({
                                                                             ...prev,
-                                                                            contact: e.target.checked
-                                                                                ? [...prev.contact, variable.key]
-                                                                                : prev.contact.filter(v => v !== variable.key)
+                                                                            user: isSelected
+                                                                                ? prev.user.filter(v => v !== variable.key)
+                                                                                : [...prev.user, variable.key]
                                                                         }));
                                                                     }}
-                                                                    className="w-3 h-3 rounded border border-blue-500/50 bg-transparent checked:bg-blue-500 focus:ring-blue-500 focus:ring-1"
-                                                                />
-                                                                <div>
-                                                                    <code className="text-blue-300">{'{{' + variable.key + '}}'}</code>
-                                                                    <span className="text-blue-200/80 ml-1">- {variable.label}</span>
-                                                                </div>
-                                                            </label>
-                                                        ))}
+                                                                    className={`group relative overflow-hidden px-3 py-2 rounded-xl font-mono text-sm font-medium transition-all duration-300 ${isSelected
+                                                                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25'
+                                                                        : 'bg-neutral-800/60 text-neutral-400 hover:bg-neutral-700/60 hover:text-neutral-300 border border-neutral-700/50 hover:border-neutral-600/50'
+                                                                        }`}
+                                                                >
+                                                                    <div className="relative flex items-center gap-2">
+                                                                        <span>{'{' + variable.key + '}'}</span>
+                                                                        <div className={`w-1.5 h-1.5 rounded-full transition-all ${isSelected
+                                                                            ? 'bg-white/80'
+                                                                            : variable.hasValue
+                                                                                ? 'bg-green-400'
+                                                                                : 'bg-neutral-500'
+                                                                            }`} />
+                                                                    </div>
+                                                                    {isSelected && (
+                                                                        <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/20 to-teal-600/20 animate-pulse"></div>
+                                                                    )}
+                                                                </button>
+                                                            );
+                                                        })}
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            {(selectedVariables.user.length > 0 || selectedVariables.contact.length > 0) && (
-                                                <div className="mt-4 p-3 bg-blue-800/20 rounded-lg border border-blue-600/30">
-                                                    <p className="text-blue-200 text-xs font-medium mb-2">
-                                                        ✅ Variáveis selecionadas ({selectedVariables.user.length + selectedVariables.contact.length}):
-                                                    </p>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {[...selectedVariables.user, ...selectedVariables.contact].map(variable => (
-                                                            <span key={variable} className="inline-block px-2 py-1 bg-blue-600/30 text-blue-200 rounded text-xs">
-                                                                {'{{' + variable + '}}'}
-                                                            </span>
-                                                        ))}
+                                            {/* Informações do Contato */}
+                                            <div className="relative">
+                                                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-pink-500/5 rounded-2xl"></div>
+                                                <div className="relative p-5 border border-purple-500/20 rounded-2xl backdrop-blur-sm">
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="relative">
+                                                                <div className="absolute inset-0 bg-purple-500 rounded-lg blur opacity-30"></div>
+                                                                <div className="relative p-2 bg-purple-500/20 rounded-lg border border-purple-500/30">
+                                                                    <Users className="h-4 w-4 text-purple-400" />
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <h5 className="text-purple-200 font-semibold">Informações do Contato</h5>
+                                                                <p className="text-purple-300/60 text-xs">
+                                                                    {selectedVariables.contact.length} de 7 selecionadas
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setSelectedVariables(prev => ({
+                                                                        ...prev,
+                                                                        contact: []
+                                                                    }));
+                                                                }}
+                                                                className="px-3 py-1 text-xs font-medium text-purple-300 hover:text-purple-200 bg-purple-900/30 hover:bg-purple-900/50 rounded-full transition-all border border-purple-700/30 hover:border-purple-600/50"
+                                                            >
+                                                                Limpar
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const contactVars = ['contactName', 'contactFirstName', 'contactEmail', 'contactPosition', 'companyName', 'companyWebsite', 'companyIndustry'];
+                                                                    setSelectedVariables(prev => ({
+                                                                        ...prev,
+                                                                        contact: contactVars
+                                                                    }));
+                                                                }}
+                                                                className="px-3 py-1 text-xs font-medium text-purple-200 bg-purple-600/30 hover:bg-purple-600/40 rounded-full transition-all border border-purple-500/30 hover:border-purple-400/50"
+                                                            >
+                                                                Todas
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {[
+                                                            { key: 'contactName' },
+                                                            { key: 'contactFirstName' },
+                                                            { key: 'contactEmail' },
+                                                            { key: 'contactPosition' },
+                                                            { key: 'companyName' },
+                                                            { key: 'companyWebsite' },
+                                                            { key: 'companyIndustry' }
+                                                        ].map(variable => {
+                                                            const isSelected = selectedVariables.contact.includes(variable.key);
+                                                            return (
+                                                                <button
+                                                                    key={variable.key}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setSelectedVariables(prev => ({
+                                                                            ...prev,
+                                                                            contact: isSelected
+                                                                                ? prev.contact.filter(v => v !== variable.key)
+                                                                                : [...prev.contact, variable.key]
+                                                                        }));
+                                                                    }}
+                                                                    className={`group relative overflow-hidden px-3 py-2 rounded-xl font-mono text-sm font-medium transition-all duration-300 ${isSelected
+                                                                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/25'
+                                                                        : 'bg-neutral-800/60 text-neutral-400 hover:bg-neutral-700/60 hover:text-neutral-300 border border-neutral-700/50 hover:border-neutral-600/50'
+                                                                        }`}
+                                                                >
+                                                                    <span>{'{' + variable.key + '}'}</span>
+                                                                    {isSelected && (
+                                                                        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-pink-600/20 animate-pulse"></div>
+                                                                    )}
+                                                                </button>
+                                                            );
+                                                        })}
                                                     </div>
                                                 </div>
-                                            )}
+                                            </div>
 
-                                            <div className="mt-3 p-3 bg-blue-800/20 rounded-lg border border-blue-600/30">
-                                                <p className="text-blue-200/80 text-xs">
-                                                    <strong className="text-blue-200">Dica:</strong> As variáveis selecionadas serão incluídas automaticamente no prompt da IA.
-                                                    {!userData.yourName && (
-                                                        <span className="block mt-1">
-                                                            Configure seus dados em <Link href="/settings" className="text-blue-300 hover:text-blue-200 underline">Configurações</Link> para melhores resultados.
-                                                        </span>
-                                                    )}
-                                                </p>
+                                            {/* Dica Final */}
+                                            <div className="p-4 bg-gradient-to-r from-neutral-800/50 to-neutral-700/30 rounded-xl border border-neutral-600/30">
+                                                <div className="flex items-start gap-3">
+                                                    <div className="p-2 bg-amber-500/20 rounded-lg">
+                                                        <Sparkles className="h-4 w-4 text-amber-400" />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <p className="text-neutral-200 text-sm font-medium mb-1">
+                                                            💡 Como funciona
+                                                        </p>
+                                                        <p className="text-neutral-400 text-sm leading-relaxed">
+                                                            As variáveis selecionadas serão automaticamente incluídas no prompt da IA para personalizar seu script.
+                                                            {!userData.yourName && (
+                                                                <span className="block mt-2 text-amber-300/80">
+                                                                    ⚙️ <Link href="/settings" className="text-amber-300 hover:text-amber-200 underline font-medium">Configure seus dados</Link> para usar suas informações pessoais.
+                                                                </span>
+                                                            )}
+                                                        </p>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
