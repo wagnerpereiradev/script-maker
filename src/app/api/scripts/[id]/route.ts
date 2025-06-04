@@ -3,10 +3,10 @@ import { PrismaClient } from '@/generated/prisma';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id } = params;
+        const { id } = await params;
         const prisma = new PrismaClient();
 
         const script = await prisma.emailScript.findUnique({
@@ -62,10 +62,10 @@ export async function GET(
 
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id } = params;
+        const { id } = await params;
         const prisma = new PrismaClient();
         const body = await request.json();
 
@@ -126,10 +126,10 @@ export async function PUT(
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id } = params;
+        const { id } = await params;
         const prisma = new PrismaClient();
 
         // Verificar se o script existe
