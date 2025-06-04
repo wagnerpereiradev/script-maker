@@ -711,37 +711,40 @@ export default function SendEmail() {
 
     return (
         <MainLayout>
-            <div className="p-8 h-screen flex flex-col">
-                <div className="max-w-6xl mx-auto flex-1 flex flex-col min-h-0">
+            <div className="p-4 sm:p-6 lg:p-8 h-screen flex flex-col">
+                <div className="max-w-7xl mx-auto flex-1 flex flex-col min-h-0 w-full">
                     {/* Header */}
-                    <div className="mb-6 flex-shrink-0">
-                        <h1 className="text-3xl font-bold text-white mb-2">
+                    <div className="mb-4 sm:mb-6 flex-shrink-0">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
                             Enviar Email
                         </h1>
-                        <p className="text-neutral-400">
+                        <p className="text-neutral-400 text-sm sm:text-base">
                             Selecione contato, script e template para compor e enviar seu email
                         </p>
                     </div>
 
                     {/* Message */}
                     {message && (
-                        <div className={`mb-4 p-4 rounded-lg flex-shrink-0 ${message.type === 'success'
+                        <div className={`mb-4 p-3 sm:p-4 rounded-lg flex-shrink-0 ${message.type === 'success'
                             ? 'bg-green-900/50 border border-green-700 text-green-300'
                             : 'bg-red-900/50 border border-red-700 text-red-300'
                             }`}>
-                            {message.text}
-                            <button
-                                onClick={() => setMessage(null)}
-                                className="float-right text-current hover:opacity-70 cursor-pointer"
-                            >
-                                <X className="h-4 w-4" />
-                            </button>
+                            <div className="flex items-start justify-between gap-2">
+                                <span className="flex-1 text-sm sm:text-base">{message.text}</span>
+                                <button
+                                    onClick={() => setMessage(null)}
+                                    className="flex-shrink-0 text-current hover:opacity-70 cursor-pointer p-1"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
                         </div>
                     )}
 
                     {/* Progress Steps */}
-                    <div className="mb-6 flex-shrink-0">
-                        <div className="flex items-center justify-between">
+                    <div className="mb-4 sm:mb-6 flex-shrink-0">
+                        {/* Desktop Steps */}
+                        <div className="hidden lg:flex items-center justify-between">
                             {[
                                 { step: 1, title: 'Para quem Enviar?', icon: Users },
                                 { step: 2, title: 'Escolher Template', icon: Mail },
@@ -778,35 +781,83 @@ export default function SendEmail() {
                                 );
                             })}
                         </div>
+
+                        {/* Mobile/Tablet Steps */}
+                        <div className="lg:hidden">
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="text-sm text-neutral-400">
+                                    Passo {step} de 4
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {[1, 2, 3, 4].map((num) => (
+                                        <div
+                                            key={num}
+                                            className={`w-2 h-2 rounded-full ${step >= num ? 'bg-blue-500' : 'bg-neutral-600'
+                                                }`}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="bg-neutral-800/50 rounded-lg p-3 border border-neutral-700/50">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 1 ? 'bg-blue-600' : step > 1 ? 'bg-green-600' : 'bg-neutral-700'
+                                        }`}>
+                                        {step === 1 ? (
+                                            <Users className="w-4 h-4 text-white" />
+                                        ) : step === 2 ? (
+                                            <Mail className="w-4 h-4 text-white" />
+                                        ) : step === 3 ? (
+                                            <FileText className="w-4 h-4 text-white" />
+                                        ) : (
+                                            <Send className="w-4 h-4 text-white" />
+                                        )}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-white font-medium text-sm">
+                                            {step === 1 && 'Para quem Enviar?'}
+                                            {step === 2 && 'Escolher Template'}
+                                            {step === 3 && 'Escolher Script (Opcional)'}
+                                            {step === 4 && 'Revisar e Enviar'}
+                                        </h3>
+                                        <p className="text-neutral-400 text-xs">
+                                            {step === 1 && 'Selecione um contato ou lista'}
+                                            {step === 2 && 'Escolha um template de email'}
+                                            {step === 3 && 'Adicione um script personalizado'}
+                                            {step === 4 && 'Revise e envie seu email'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Step Content */}
                     <div className="bg-neutral-gradient rounded-lg border border-neutral-800 flex-1 flex flex-col min-h-0">
                         {step === 1 && (
-                            <div className="p-6 flex-1 flex flex-col min-h-0">
-                                <h2 className="text-xl font-semibold text-white mb-6 flex-shrink-0">Para quem Enviar?</h2>
+                            <div className="p-4 sm:p-6 flex-1 flex flex-col min-h-0">
+                                <h2 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex-shrink-0">Para quem Enviar?</h2>
 
                                 {/* Tipo de Envio */}
-                                <div className="mb-6 flex-shrink-0">
-                                    <div className="grid grid-cols-2 gap-4">
+                                <div className="mb-4 sm:mb-6 flex-shrink-0">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                         <button
                                             onClick={() => {
                                                 setSendType('individual');
                                                 setSelectedMailingList(null);
                                             }}
-                                            className={`p-4 rounded-lg border-2 transition-all ${sendType === 'individual'
+                                            className={`p-3 sm:p-4 rounded-lg border-2 transition-all ${sendType === 'individual'
                                                 ? 'border-blue-500 bg-blue-900/20'
                                                 : 'border-neutral-700 bg-neutral-800/50 hover:border-neutral-600'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className={`p-2 rounded-lg ${sendType === 'individual' ? 'bg-blue-600' : 'bg-neutral-700'
+                                                <div className={`p-2 rounded-lg flex-shrink-0 ${sendType === 'individual' ? 'bg-blue-600' : 'bg-neutral-700'
                                                     }`}>
-                                                    <User className="h-5 w-5 text-white" />
+                                                    <User className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                                                 </div>
-                                                <div className="text-left">
-                                                    <h3 className="font-medium text-white">Contato Individual</h3>
-                                                    <p className="text-sm text-neutral-400">Enviar para um contato específico</p>
+                                                <div className="text-left min-w-0 flex-1">
+                                                    <h3 className="font-medium text-white text-sm sm:text-base">Contato Individual</h3>
+                                                    <p className="text-xs sm:text-sm text-neutral-400">Enviar para um contato específico</p>
                                                 </div>
                                             </div>
                                         </button>
@@ -816,19 +867,19 @@ export default function SendEmail() {
                                                 setSendType('list');
                                                 setSelectedContact(null);
                                             }}
-                                            className={`p-4 rounded-lg border-2 transition-all ${sendType === 'list'
+                                            className={`p-3 sm:p-4 rounded-lg border-2 transition-all ${sendType === 'list'
                                                 ? 'border-blue-500 bg-blue-900/20'
                                                 : 'border-neutral-700 bg-neutral-800/50 hover:border-neutral-600'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className={`p-2 rounded-lg ${sendType === 'list' ? 'bg-blue-600' : 'bg-neutral-700'
+                                                <div className={`p-2 rounded-lg flex-shrink-0 ${sendType === 'list' ? 'bg-blue-600' : 'bg-neutral-700'
                                                     }`}>
-                                                    <List className="h-5 w-5 text-white" />
+                                                    <List className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                                                 </div>
-                                                <div className="text-left">
-                                                    <h3 className="font-medium text-white">Lista de Email</h3>
-                                                    <p className="text-sm text-neutral-400">Enviar para todos de uma lista</p>
+                                                <div className="text-left min-w-0 flex-1">
+                                                    <h3 className="font-medium text-white text-sm sm:text-base">Lista de Email</h3>
+                                                    <p className="text-xs sm:text-sm text-neutral-400">Enviar para todos de uma lista</p>
                                                 </div>
                                             </div>
                                         </button>
@@ -840,7 +891,7 @@ export default function SendEmail() {
                                     <>
                                         {/* Search Contatos */}
                                         <div className="mb-4 flex-shrink-0">
-                                            <div className="flex items-center justify-between mb-3">
+                                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3">
                                                 <h3 className="text-sm font-medium text-neutral-300">
                                                     Contatos disponíveis
                                                 </h3>
@@ -854,7 +905,7 @@ export default function SendEmail() {
                                                 <input
                                                     type="text"
                                                     placeholder="Buscar por nome, empresa ou email..."
-                                                    className="w-full pl-10 pr-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500"
+                                                    className="w-full pl-10 pr-4 py-2.5 sm:py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 text-sm sm:text-base"
                                                     value={contactSearch}
                                                     onChange={(e) => setContactSearch(e.target.value)}
                                                 />
@@ -862,17 +913,17 @@ export default function SendEmail() {
                                         </div>
 
                                         {/* Contacts List */}
-                                        <div className="space-y-3 flex-1 overflow-y-auto min-h-0 mb-6">
+                                        <div className="space-y-3 flex-1 overflow-y-auto min-h-0 mb-4 sm:mb-6">
                                             {filteredContacts.length === 0 ? (
                                                 <div className="h-full flex items-center justify-center">
-                                                    <div className="text-center">
-                                                        <div className="w-16 h-16 mx-auto mb-4 bg-neutral-800 rounded-full flex items-center justify-center">
-                                                            <User className="w-8 h-8 text-neutral-500" />
+                                                    <div className="text-center px-4">
+                                                        <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 bg-neutral-800 rounded-full flex items-center justify-center">
+                                                            <User className="w-6 h-6 sm:w-8 sm:h-8 text-neutral-500" />
                                                         </div>
-                                                        <h3 className="text-white font-medium mb-2">
+                                                        <h3 className="text-white font-medium mb-2 text-sm sm:text-base">
                                                             {contactSearch ? 'Nenhum contato encontrado' : 'Nenhum contato disponível'}
                                                         </h3>
-                                                        <p className="text-neutral-400 text-sm">
+                                                        <p className="text-neutral-400 text-xs sm:text-sm max-w-sm mx-auto">
                                                             {contactSearch
                                                                 ? 'Tente buscar com termos diferentes ou verifique se há contatos ativos.'
                                                                 : 'Você precisa ter contatos ativos para enviar emails.'
@@ -881,7 +932,7 @@ export default function SendEmail() {
                                                         {contactSearch && (
                                                             <button
                                                                 onClick={() => setContactSearch('')}
-                                                                className="mt-3 text-blue-400 hover:text-blue-300 text-sm"
+                                                                className="mt-3 text-blue-400 hover:text-blue-300 text-xs sm:text-sm"
                                                             >
                                                                 Limpar busca
                                                             </button>
@@ -908,7 +959,7 @@ export default function SendEmail() {
                                     <>
                                         {/* Search Listas */}
                                         <div className="mb-4 flex-shrink-0">
-                                            <div className="flex items-center justify-between mb-3">
+                                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3">
                                                 <h3 className="text-sm font-medium text-neutral-300">
                                                     Listas de email disponíveis
                                                 </h3>
@@ -922,7 +973,7 @@ export default function SendEmail() {
                                                 <input
                                                     type="text"
                                                     placeholder="Buscar por nome ou descrição..."
-                                                    className="w-full pl-10 pr-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500"
+                                                    className="w-full pl-10 pr-4 py-2.5 sm:py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 text-sm sm:text-base"
                                                     value={mailingListSearch}
                                                     onChange={(e) => setMailingListSearch(e.target.value)}
                                                 />
@@ -930,17 +981,17 @@ export default function SendEmail() {
                                         </div>
 
                                         {/* Mailing Lists */}
-                                        <div className="space-y-3 flex-1 overflow-y-auto min-h-0 mb-6">
+                                        <div className="space-y-3 flex-1 overflow-y-auto min-h-0 mb-4 sm:mb-6">
                                             {filteredMailingLists.length === 0 ? (
                                                 <div className="h-full flex items-center justify-center">
-                                                    <div className="text-center">
-                                                        <div className="w-16 h-16 mx-auto mb-4 bg-neutral-800 rounded-full flex items-center justify-center">
-                                                            <List className="w-8 h-8 text-neutral-500" />
+                                                    <div className="text-center px-4">
+                                                        <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 bg-neutral-800 rounded-full flex items-center justify-center">
+                                                            <List className="w-6 h-6 sm:w-8 sm:h-8 text-neutral-500" />
                                                         </div>
-                                                        <h3 className="text-white font-medium mb-2">
+                                                        <h3 className="text-white font-medium mb-2 text-sm sm:text-base">
                                                             {mailingListSearch ? 'Nenhuma lista encontrada' : 'Nenhuma lista disponível'}
                                                         </h3>
-                                                        <p className="text-neutral-400 text-sm">
+                                                        <p className="text-neutral-400 text-xs sm:text-sm max-w-sm mx-auto">
                                                             {mailingListSearch
                                                                 ? 'Tente buscar com termos diferentes.'
                                                                 : 'Você precisa criar listas de email para usar esta opção.'
@@ -949,7 +1000,7 @@ export default function SendEmail() {
                                                         {mailingListSearch && (
                                                             <button
                                                                 onClick={() => setMailingListSearch('')}
-                                                                className="mt-3 text-blue-400 hover:text-blue-300 text-sm"
+                                                                className="mt-3 text-blue-400 hover:text-blue-300 text-xs sm:text-sm"
                                                             >
                                                                 Limpar busca
                                                             </button>
@@ -964,25 +1015,25 @@ export default function SendEmail() {
                                                     return (
                                                         <div
                                                             key={list.id}
-                                                            className={`p-4 border rounded-lg cursor-pointer transition-all ${isSelected
+                                                            className={`p-3 sm:p-4 border rounded-lg cursor-pointer transition-all ${isSelected
                                                                 ? 'border-blue-500 bg-blue-900/20'
                                                                 : 'border-neutral-700 bg-neutral-800/50 hover:border-neutral-600 hover:bg-neutral-800'
                                                                 }`}
                                                             onClick={() => setSelectedMailingList(list)}
                                                         >
-                                                            <div className="flex items-center justify-between">
-                                                                <div className="flex-1">
+                                                            <div className="flex items-center justify-between gap-3">
+                                                                <div className="flex-1 min-w-0">
                                                                     <div className="flex items-center gap-3 mb-2">
                                                                         <div
-                                                                            className="w-10 h-10 rounded-full flex items-center justify-center"
+                                                                            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0"
                                                                             style={{ backgroundColor: list.color }}
                                                                         >
-                                                                            <List className="w-5 h-5 text-white" />
+                                                                            <List className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                                                         </div>
-                                                                        <div>
-                                                                            <h3 className="text-white font-medium">{list.name}</h3>
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <h3 className="text-white font-medium text-sm sm:text-base truncate">{list.name}</h3>
                                                                             {list.description && (
-                                                                                <p className="text-neutral-400 text-sm">{list.description}</p>
+                                                                                <p className="text-neutral-400 text-xs sm:text-sm truncate">{list.description}</p>
                                                                             )}
                                                                         </div>
                                                                     </div>
@@ -992,9 +1043,9 @@ export default function SendEmail() {
                                                                     </div>
                                                                 </div>
                                                                 {isSelected && (
-                                                                    <div className="ml-3">
-                                                                        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                                                                            <Check className="w-4 h-4 text-white" />
+                                                                    <div className="flex-shrink-0">
+                                                                        <div className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                                                                            <Check className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                                                                         </div>
                                                                     </div>
                                                                 )}
@@ -1012,7 +1063,7 @@ export default function SendEmail() {
                                     <button
                                         onClick={() => setStep(2)}
                                         disabled={sendType === 'individual' ? !selectedContact : !selectedMailingList}
-                                        className="bg-blue-600 hover:bg-blue-700 disabled:bg-neutral-700 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                                        className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-neutral-700 disabled:cursor-not-allowed text-white px-6 py-3 sm:py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                                     >
                                         Próximo
                                         <ArrowRight className="w-4 h-4" />
@@ -1022,17 +1073,26 @@ export default function SendEmail() {
                         )}
 
                         {step === 2 && (
-                            <div className="p-6 flex-1 flex flex-col min-h-0">
-                                <h2 className="text-xl font-semibold text-white mb-4 flex-shrink-0">Escolher Template</h2>
+                            <div className="p-4 sm:p-6 flex-1 flex flex-col min-h-0">
+                                <h2 className="text-lg sm:text-xl font-semibold text-white mb-4 flex-shrink-0">Escolher Template</h2>
 
                                 {/* Search */}
                                 <div className="mb-4 flex-shrink-0">
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3">
+                                        <h3 className="text-sm font-medium text-neutral-300">
+                                            Templates disponíveis
+                                        </h3>
+                                        <div className="flex items-center gap-2 px-2 py-1 bg-neutral-800 rounded text-xs text-neutral-400">
+                                            <Mail className="h-3 w-3" />
+                                            <span>{filteredTemplates.length} template{filteredTemplates.length !== 1 ? 's' : ''}</span>
+                                        </div>
+                                    </div>
                                     <div className="relative">
                                         <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
                                         <input
                                             type="text"
                                             placeholder="Buscar templates..."
-                                            className="w-full pl-10 pr-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500"
+                                            className="w-full pl-10 pr-4 py-2.5 sm:py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 text-sm sm:text-base"
                                             value={templateSearch}
                                             onChange={(e) => setTemplateSearch(e.target.value)}
                                         />
@@ -1040,37 +1100,82 @@ export default function SendEmail() {
                                 </div>
 
                                 {/* Templates List */}
-                                <div className="space-y-3 flex-1 overflow-y-auto min-h-0 mb-6">
-                                    {filteredTemplates.map((template) => (
-                                        <div
-                                            key={template.id}
-                                            className={`p-4 border rounded-lg cursor-pointer transition-all ${selectedTemplate?.id === template.id
-                                                ? 'border-blue-500 bg-blue-900/20'
-                                                : 'border-neutral-700 hover:border-neutral-600'
-                                                }`}
-                                            onClick={() => setSelectedTemplate(template)}
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <h3 className="font-semibold text-white">{template.name}</h3>
-                                                    <p className="text-neutral-400 text-sm">{template.subject}</p>
-                                                    {template.description && (
-                                                        <p className="text-neutral-500 text-xs">{template.description}</p>
-                                                    )}
+                                <div className="space-y-3 flex-1 overflow-y-auto min-h-0 mb-4 sm:mb-6">
+                                    {filteredTemplates.length === 0 ? (
+                                        <div className="h-full flex items-center justify-center">
+                                            <div className="text-center px-4">
+                                                <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 bg-neutral-800 rounded-full flex items-center justify-center">
+                                                    <Mail className="w-6 h-6 sm:w-8 sm:h-8 text-neutral-500" />
                                                 </div>
-                                                {selectedTemplate?.id === template.id && (
-                                                    <Check className="w-5 h-5 text-blue-400" />
+                                                <h3 className="text-white font-medium mb-2 text-sm sm:text-base">
+                                                    {templateSearch ? 'Nenhum template encontrado' : 'Nenhum template disponível'}
+                                                </h3>
+                                                <p className="text-neutral-400 text-xs sm:text-sm max-w-sm mx-auto">
+                                                    {templateSearch
+                                                        ? 'Tente buscar com termos diferentes.'
+                                                        : 'Você precisa criar templates de email para usar esta funcionalidade.'
+                                                    }
+                                                </p>
+                                                {templateSearch && (
+                                                    <button
+                                                        onClick={() => setTemplateSearch('')}
+                                                        className="mt-3 text-blue-400 hover:text-blue-300 text-xs sm:text-sm"
+                                                    >
+                                                        Limpar busca
+                                                    </button>
                                                 )}
                                             </div>
                                         </div>
-                                    ))}
+                                    ) : (
+                                        filteredTemplates.map((template) => (
+                                            <div
+                                                key={template.id}
+                                                className={`p-3 sm:p-4 border rounded-lg cursor-pointer transition-all ${selectedTemplate?.id === template.id
+                                                    ? 'border-blue-500 bg-blue-900/20'
+                                                    : 'border-neutral-700 hover:border-neutral-600'
+                                                    }`}
+                                                onClick={() => setSelectedTemplate(template)}
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-start gap-3 mb-2">
+                                                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-600 to-purple-700 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                                <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <h3 className="font-semibold text-white text-sm sm:text-base truncate">{template.name}</h3>
+                                                                <p className="text-neutral-400 text-xs sm:text-sm leading-relaxed">{template.subject}</p>
+                                                                {template.description && (
+                                                                    <p className="text-neutral-500 text-xs mt-1 line-clamp-2">{template.description}</p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        {template.category && (
+                                                            <div className="flex items-center gap-2 ml-11">
+                                                                <span className="px-2 py-0.5 bg-neutral-800 text-neutral-300 rounded text-xs border border-neutral-600">
+                                                                    {template.category}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    {selectedTemplate?.id === template.id && (
+                                                        <div className="flex-shrink-0">
+                                                            <div className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                                                                <Check className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
 
                                 {/* Navigation */}
-                                <div className="flex justify-between flex-shrink-0">
+                                <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-0 flex-shrink-0">
                                     <button
                                         onClick={() => setStep(1)}
-                                        className="flex items-center gap-2 px-6 py-2 bg-neutral-700 text-white rounded-lg hover:bg-neutral-600 transition-colors"
+                                        className="flex items-center justify-center gap-2 px-6 py-3 sm:py-2 bg-neutral-700 text-white rounded-lg hover:bg-neutral-600 transition-colors order-2 sm:order-1"
                                     >
                                         <ArrowLeft className="w-4 h-4" />
                                         Anterior
@@ -1078,7 +1183,7 @@ export default function SendEmail() {
                                     <button
                                         onClick={() => setStep(3)}
                                         disabled={!selectedTemplate}
-                                        className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="flex items-center justify-center gap-2 px-6 py-3 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2"
                                     >
                                         Próximo
                                         <ArrowRight className="w-4 h-4" />
@@ -1088,18 +1193,18 @@ export default function SendEmail() {
                         )}
 
                         {step === 3 && (
-                            <div className="p-6 flex-1 flex flex-col min-h-0">
-                                <h2 className="text-xl font-semibold text-white mb-4 flex-shrink-0">
+                            <div className="p-4 sm:p-6 flex-1 flex flex-col min-h-0">
+                                <h2 className="text-lg sm:text-xl font-semibold text-white mb-4 flex-shrink-0">
                                     Escolher Script (Opcional)
                                 </h2>
 
-                                {/* Layout de duas colunas */}
-                                <div className="flex-1 flex gap-6 min-h-0">
+                                {/* Layout responsivo - vertical em mobile, horizontal em desktop */}
+                                <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-6 min-h-0">
                                     {/* Coluna esquerda - Lista de scripts */}
-                                    <div className="w-1/2 flex flex-col min-h-0">
+                                    <div className="w-full lg:w-1/2 flex flex-col min-h-0">
                                         {/* Search */}
                                         <div className="mb-4 flex-shrink-0">
-                                            <div className="flex items-center justify-between mb-3">
+                                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3">
                                                 <h3 className="text-sm font-medium text-neutral-300">
                                                     Scripts disponíveis
                                                 </h3>
@@ -1113,7 +1218,7 @@ export default function SendEmail() {
                                                 <input
                                                     type="text"
                                                     placeholder="Buscar scripts..."
-                                                    className="w-full pl-10 pr-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500"
+                                                    className="w-full pl-10 pr-4 py-2.5 sm:py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 text-sm sm:text-base"
                                                     value={scriptSearch}
                                                     onChange={(e) => setScriptSearch(e.target.value)}
                                                 />
@@ -1123,40 +1228,49 @@ export default function SendEmail() {
                                         {/* Opção "Sem Script" */}
                                         <div className="mb-3 flex-shrink-0">
                                             <div
-                                                className={`p-4 border rounded-lg cursor-pointer transition-all ${!selectedScript
+                                                className={`p-3 sm:p-4 border rounded-lg cursor-pointer transition-all ${!selectedScript
                                                     ? 'border-blue-500 bg-blue-900/20'
                                                     : 'border-neutral-700 hover:border-neutral-600'
                                                     }`}
                                                 onClick={() => setSelectedScript(null)}
                                             >
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <h3 className="font-semibold text-white">
-                                                            Sem Script Específico
-                                                        </h3>
-                                                        <p className="text-neutral-400 text-sm">
-                                                            Usar apenas o template selecionado
-                                                        </p>
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-neutral-600 to-neutral-700 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                            <X className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <h3 className="font-semibold text-white text-sm sm:text-base">
+                                                                Sem Script Específico
+                                                            </h3>
+                                                            <p className="text-neutral-400 text-xs sm:text-sm">
+                                                                Usar apenas o template selecionado
+                                                            </p>
+                                                        </div>
                                                     </div>
                                                     {!selectedScript && (
-                                                        <Check className="w-5 h-5 text-blue-400" />
+                                                        <div className="flex-shrink-0">
+                                                            <div className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                                                                <Check className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                                                            </div>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
                                         </div>
 
                                         {/* Scripts List */}
-                                        <div className="space-y-3 flex-1 overflow-y-auto min-h-0">
+                                        <div className="space-y-3 flex-1 overflow-y-auto min-h-0 max-h-60 lg:max-h-none">
                                             {filteredScripts.length === 0 ? (
                                                 <div className="h-full flex items-center justify-center">
-                                                    <div className="text-center">
-                                                        <div className="w-16 h-16 mx-auto mb-4 bg-neutral-800 rounded-full flex items-center justify-center">
-                                                            <FileText className="w-8 h-8 text-neutral-500" />
+                                                    <div className="text-center px-4">
+                                                        <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 bg-neutral-800 rounded-full flex items-center justify-center">
+                                                            <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-neutral-500" />
                                                         </div>
-                                                        <h3 className="text-white font-medium mb-2">
+                                                        <h3 className="text-white font-medium mb-2 text-sm sm:text-base">
                                                             {scriptSearch ? 'Nenhum script encontrado' : 'Nenhum script disponível'}
                                                         </h3>
-                                                        <p className="text-neutral-400 text-sm">
+                                                        <p className="text-neutral-400 text-xs sm:text-sm max-w-sm mx-auto">
                                                             {scriptSearch
                                                                 ? 'Tente buscar com termos diferentes.'
                                                                 : 'Você pode continuar sem script ou criar um primeiro.'}
@@ -1164,7 +1278,7 @@ export default function SendEmail() {
                                                         {scriptSearch && (
                                                             <button
                                                                 onClick={() => setScriptSearch('')}
-                                                                className="mt-3 text-blue-400 hover:text-blue-300 text-sm"
+                                                                className="mt-3 text-blue-400 hover:text-blue-300 text-xs sm:text-sm"
                                                             >
                                                                 Limpar busca
                                                             </button>
@@ -1175,44 +1289,55 @@ export default function SendEmail() {
                                                 filteredScripts.map((script) => (
                                                     <div
                                                         key={script.id}
-                                                        className={`p-4 border rounded-lg cursor-pointer transition-all ${selectedScript?.id === script.id
+                                                        className={`p-3 sm:p-4 border rounded-lg cursor-pointer transition-all ${selectedScript?.id === script.id
                                                             ? 'border-blue-500 bg-blue-900/20'
                                                             : 'border-neutral-700 hover:border-neutral-600'
                                                             }`}
                                                         onClick={() => setSelectedScript(script)}
                                                     >
-                                                        <div className="flex items-start justify-between">
+                                                        <div className="flex items-start justify-between gap-3">
                                                             <div className="flex-1 min-w-0">
-                                                                <div className="flex items-center gap-2 mb-2">
-                                                                    <h3 className="font-semibold text-white text-sm truncate">
-                                                                        {script.subject}
-                                                                    </h3>
-                                                                    <span className="px-2 py-0.5 bg-neutral-800 text-neutral-300 rounded text-xs border border-neutral-600 flex-shrink-0">
-                                                                        {script.emailType === 'cold_outreach' && 'Primeiro Contato'}
-                                                                        {script.emailType === 'follow_up' && 'Follow-up'}
-                                                                        {script.emailType === 'introduction' && 'Apresentação'}
-                                                                        {script.emailType === 'meeting_request' && 'Agendamento'}
-                                                                    </span>
+                                                                <div className="flex items-start gap-3 mb-2">
+                                                                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                                        <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                                                                    </div>
+                                                                    <div className="min-w-0 flex-1">
+                                                                        <h3 className="font-semibold text-white text-xs sm:text-sm truncate mb-1">
+                                                                            {script.subject}
+                                                                        </h3>
+                                                                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                                                                            <span className="px-2 py-0.5 bg-neutral-800 text-neutral-300 rounded text-xs border border-neutral-600 flex-shrink-0">
+                                                                                {script.emailType === 'cold_outreach' && 'Primeiro Contato'}
+                                                                                {script.emailType === 'follow_up' && 'Follow-up'}
+                                                                                {script.emailType === 'introduction' && 'Apresentação'}
+                                                                                {script.emailType === 'meeting_request' && 'Agendamento'}
+                                                                            </span>
+                                                                            {script.tone && (
+                                                                                <span className="text-neutral-400 text-xs">• {script.tone}</span>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="text-xs text-neutral-400 mb-2">
+                                                                            {script.prospectData?.contactName && (
+                                                                                <span className="truncate block">{script.prospectData.contactName}</span>
+                                                                            )}
+                                                                            {script.prospectData?.companyName && (
+                                                                                <span className="truncate block">• {script.prospectData.companyName}</span>
+                                                                            )}
+                                                                        </div>
+                                                                        <p className="text-neutral-400 text-xs leading-relaxed line-clamp-2">
+                                                                            {script.body.length > 80
+                                                                                ? script.body.substring(0, 80) + '...'
+                                                                                : script.body}
+                                                                        </p>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="flex items-center gap-3 text-xs text-neutral-400 mb-2">
-                                                                    {script.prospectData?.contactName && (
-                                                                        <span>{script.prospectData.contactName}</span>
-                                                                    )}
-                                                                    {script.prospectData?.companyName && (
-                                                                        <span>• {script.prospectData.companyName}</span>
-                                                                    )}
-                                                                    {script.tone && (
-                                                                        <span>• {script.tone}</span>
-                                                                    )}
-                                                                </div>
-                                                                <p className="text-neutral-400 text-xs leading-relaxed">
-                                                                    {script.body.length > 100
-                                                                        ? script.body.substring(0, 100) + '...'
-                                                                        : script.body}
-                                                                </p>
                                                             </div>
                                                             {selectedScript?.id === script.id && (
-                                                                <Check className="w-5 h-5 text-blue-400 flex-shrink-0 ml-3" />
+                                                                <div className="flex-shrink-0">
+                                                                    <div className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                                                                        <Check className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                                                                    </div>
+                                                                </div>
                                                             )}
                                                         </div>
                                                     </div>
@@ -1222,30 +1347,35 @@ export default function SendEmail() {
                                     </div>
 
                                     {/* Coluna direita - Preview */}
-                                    <div className="w-1/2 flex flex-col min-h-0">
+                                    <div className="w-full lg:w-1/2 flex flex-col min-h-0">
+                                        <div className="mb-3 lg:hidden">
+                                            <h3 className="text-sm font-medium text-neutral-300">
+                                                Preview do Email
+                                            </h3>
+                                        </div>
                                         <EmailTemplatePreview
                                             sendType={sendType}
                                             selectedTemplate={selectedTemplate}
                                             selectedScript={selectedScript}
                                             contactForPreview={sendType === 'individual' ? selectedContact : previewContact}
                                             smtpConfig={smtpConfig}
-                                            className="flex-1"
+                                            className="flex-1 min-h-60 lg:min-h-0"
                                         />
                                     </div>
                                 </div>
 
                                 {/* Navigation */}
-                                <div className="flex justify-between flex-shrink-0 mt-6">
+                                <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-0 flex-shrink-0 mt-4 lg:mt-6">
                                     <button
                                         onClick={() => setStep(2)}
-                                        className="flex items-center gap-2 px-6 py-2 bg-neutral-700 text-white rounded-lg hover:bg-neutral-600 transition-colors"
+                                        className="flex items-center justify-center gap-2 px-6 py-3 sm:py-2 bg-neutral-700 text-white rounded-lg hover:bg-neutral-600 transition-colors order-2 sm:order-1"
                                     >
                                         <ArrowLeft className="w-4 h-4" />
                                         Anterior
                                     </button>
                                     <button
                                         onClick={() => setStep(4)}
-                                        className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                        className="flex items-center justify-center gap-2 px-6 py-3 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors order-1 sm:order-2"
                                     >
                                         Revisar Email
                                         <ArrowRight className="w-4 h-4" />
@@ -1255,17 +1385,17 @@ export default function SendEmail() {
                         )}
 
                         {step === 4 && (
-                            <div className="p-6 flex-1 flex flex-col min-h-0">
-                                <h2 className="text-xl font-semibold text-white mb-6 flex-shrink-0">
+                            <div className="p-4 sm:p-6 flex-1 flex flex-col min-h-0">
+                                <h2 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex-shrink-0">
                                     Revisar e Enviar
                                 </h2>
 
-                                <div className="flex gap-6 flex-1 min-h-0">
+                                <div className="flex flex-col xl:flex-row gap-4 lg:gap-6 flex-1 min-h-0">
                                     {/* Coluna esquerda - Informações e configurações */}
-                                    <div className="w-1/3 flex flex-col gap-4">
+                                    <div className="w-full xl:w-1/3 flex flex-col gap-4 max-h-96 xl:max-h-none overflow-y-auto xl:overflow-visible">
                                         {/* Resumo da seleção */}
-                                        <div className="bg-neutral-800 rounded-lg p-4 border border-neutral-700">
-                                            <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
+                                        <div className="bg-neutral-800 rounded-lg p-3 sm:p-4 border border-neutral-700">
+                                            <h3 className="font-semibold text-white mb-3 sm:mb-4 flex items-center gap-2 text-sm sm:text-base">
                                                 {sendType === 'individual' ? (
                                                     <User className="w-4 h-4" />
                                                 ) : (
@@ -1273,23 +1403,23 @@ export default function SendEmail() {
                                                 )}
                                                 Resumo da Seleção
                                             </h3>
-                                            <div className="space-y-3 text-sm">
+                                            <div className="space-y-3 text-xs sm:text-sm">
                                                 <div className="flex items-start gap-3">
-                                                    <div className="w-2 h-2 rounded-full bg-blue-500 mt-2 flex-shrink-0"></div>
-                                                    <div>
+                                                    <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 sm:mt-2 flex-shrink-0"></div>
+                                                    <div className="min-w-0 flex-1">
                                                         {sendType === 'individual' ? (
                                                             <>
                                                                 <p className="text-neutral-400">Contato:</p>
-                                                                <p className="text-white font-medium">{selectedContact?.name}</p>
-                                                                <p className="text-neutral-400 text-xs">{selectedContact?.email}</p>
-                                                                <p className="text-neutral-400 text-xs">{selectedContact?.companyName}</p>
+                                                                <p className="text-white font-medium truncate">{selectedContact?.name}</p>
+                                                                <p className="text-neutral-400 text-xs truncate">{selectedContact?.email}</p>
+                                                                <p className="text-neutral-400 text-xs truncate">{selectedContact?.companyName}</p>
                                                             </>
                                                         ) : (
                                                             <>
                                                                 <p className="text-neutral-400">Lista de Email:</p>
-                                                                <p className="text-white font-medium">{selectedMailingList?.name}</p>
+                                                                <p className="text-white font-medium truncate">{selectedMailingList?.name}</p>
                                                                 {selectedMailingList?.description && (
-                                                                    <p className="text-neutral-400 text-xs">{selectedMailingList.description}</p>
+                                                                    <p className="text-neutral-400 text-xs truncate">{selectedMailingList.description}</p>
                                                                 )}
                                                                 <p className="text-neutral-400 text-xs">
                                                                     {selectedMailingList?._count?.contacts || 0} contato{(selectedMailingList?._count?.contacts || 0) !== 1 ? 's' : ''}
@@ -1299,18 +1429,18 @@ export default function SendEmail() {
                                                     </div>
                                                 </div>
                                                 <div className="flex items-start gap-3">
-                                                    <div className="w-2 h-2 rounded-full bg-green-500 mt-2 flex-shrink-0"></div>
-                                                    <div>
+                                                    <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 sm:mt-2 flex-shrink-0"></div>
+                                                    <div className="min-w-0 flex-1">
                                                         <p className="text-neutral-400">Template:</p>
-                                                        <p className="text-white font-medium">{selectedTemplate?.name}</p>
-                                                        <p className="text-neutral-400 text-xs">{selectedTemplate?.description || 'Sem descrição'}</p>
+                                                        <p className="text-white font-medium truncate">{selectedTemplate?.name}</p>
+                                                        <p className="text-neutral-400 text-xs truncate">{selectedTemplate?.description || 'Sem descrição'}</p>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-start gap-3">
-                                                    <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${selectedScript ? 'bg-purple-500' : 'bg-neutral-500'}`}></div>
-                                                    <div>
+                                                    <div className={`w-2 h-2 rounded-full mt-1.5 sm:mt-2 flex-shrink-0 ${selectedScript ? 'bg-purple-500' : 'bg-neutral-500'}`}></div>
+                                                    <div className="min-w-0 flex-1">
                                                         <p className="text-neutral-400">Script:</p>
-                                                        <p className="text-white font-medium">
+                                                        <p className="text-white font-medium truncate">
                                                             {selectedScript ? selectedScript.subject : 'Nenhum script selecionado'}
                                                         </p>
                                                         {selectedScript && (
@@ -1327,29 +1457,31 @@ export default function SendEmail() {
                                         </div>
 
                                         {/* Detalhes do envio */}
-                                        <div className="bg-neutral-800 rounded-lg p-4 border border-neutral-700">
-                                            <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
+                                        <div className="bg-neutral-800 rounded-lg p-3 sm:p-4 border border-neutral-700">
+                                            <h3 className="font-semibold text-white mb-3 sm:mb-4 flex items-center gap-2 text-sm sm:text-base">
                                                 <Mail className="w-4 h-4" />
                                                 Detalhes do Envio
                                             </h3>
-                                            <div className="space-y-3 text-sm">
-                                                <div className="flex justify-between items-center">
+                                            <div className="space-y-3 text-xs sm:text-sm">
+                                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-2">
                                                     <span className="text-neutral-400">De:</span>
-                                                    <span className="text-white text-right">
-                                                        {smtpConfig?.fromName || 'N/A'}<br />
-                                                        <span className="text-xs text-neutral-400">{smtpConfig?.fromEmail || 'N/A'}</span>
-                                                    </span>
+                                                    <div className="text-white text-left sm:text-right min-w-0 flex-1">
+                                                        <div className="truncate">{smtpConfig?.fromName || 'N/A'}</div>
+                                                        <div className="text-xs text-neutral-400 truncate">{smtpConfig?.fromEmail || 'N/A'}</div>
+                                                    </div>
                                                 </div>
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-neutral-400">Para:</span>
-                                                    <span className="text-white text-right">
-                                                        {selectedContact?.name}<br />
-                                                        <span className="text-xs text-neutral-400">{selectedContact?.email}</span>
-                                                    </span>
-                                                </div>
+                                                {sendType === 'individual' && (
+                                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-2">
+                                                        <span className="text-neutral-400">Para:</span>
+                                                        <div className="text-white text-left sm:text-right min-w-0 flex-1">
+                                                            <div className="truncate">{selectedContact?.name}</div>
+                                                            <div className="text-xs text-neutral-400 truncate">{selectedContact?.email}</div>
+                                                        </div>
+                                                    </div>
+                                                )}
                                                 <div className="border-t border-neutral-700 pt-3">
                                                     <span className="text-neutral-400 text-xs">Assunto:</span>
-                                                    <p className="text-white font-medium mt-1 leading-tight">
+                                                    <p className="text-white font-medium mt-1 leading-tight text-xs sm:text-sm">
                                                         {selectedScript ? selectedScript.subject : selectedTemplate?.subject}
                                                     </p>
                                                 </div>
@@ -1357,26 +1489,26 @@ export default function SendEmail() {
                                         </div>
 
                                         {/* Status SMTP */}
-                                        <div className="bg-neutral-800 rounded-lg p-4 border border-neutral-700">
-                                            <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
+                                        <div className="bg-neutral-800 rounded-lg p-3 sm:p-4 border border-neutral-700">
+                                            <h3 className="font-semibold text-white mb-3 sm:mb-4 flex items-center gap-2 text-sm sm:text-base">
                                                 <Send className="w-4 h-4" />
                                                 Configuração SMTP
                                             </h3>
                                             {smtpConfig?.host ? (
                                                 <div className="space-y-2">
-                                                    <div className="flex items-center text-green-300 text-sm">
-                                                        <Check className="w-4 h-4 mr-2" />
+                                                    <div className="flex items-center text-green-300 text-xs sm:text-sm">
+                                                        <Check className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                                                         Configurado e pronto
                                                     </div>
-                                                    <div className="text-xs text-neutral-400 bg-neutral-700/50 rounded px-3 py-2">
+                                                    <div className="text-xs text-neutral-400 bg-neutral-700/50 rounded px-2 sm:px-3 py-2">
                                                         <p><strong>Servidor:</strong> {smtpConfig.host}:{smtpConfig.port}</p>
                                                         <p><strong>Seguro:</strong> {smtpConfig.secure ? 'SSL/TLS' : 'Não'}</p>
                                                     </div>
                                                 </div>
                                             ) : (
                                                 <div className="space-y-2">
-                                                    <div className="flex items-center text-red-300 text-sm">
-                                                        <AlertCircle className="w-4 h-4 mr-2" />
+                                                    <div className="flex items-center text-red-300 text-xs sm:text-sm">
+                                                        <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                                                         Não configurado
                                                     </div>
                                                     <p className="text-xs text-neutral-400">
@@ -1389,56 +1521,131 @@ export default function SendEmail() {
 
                                     {/* Coluna direita - Preview do email */}
                                     <div className="flex-1 flex flex-col min-h-0">
+                                        <div className="mb-3 xl:hidden">
+                                            <h3 className="text-sm font-medium text-neutral-300">
+                                                Preview do Email
+                                            </h3>
+                                        </div>
                                         <EmailTemplatePreview
                                             sendType={sendType}
                                             selectedTemplate={selectedTemplate}
                                             selectedScript={selectedScript}
                                             contactForPreview={sendType === 'individual' ? selectedContact : previewContact}
                                             smtpConfig={smtpConfig}
-                                            className="flex-1"
+                                            className="flex-1 min-h-60 xl:min-h-0"
                                         />
                                     </div>
                                 </div>
 
                                 {/* Navigation com botões reorganizados */}
-                                <div className="flex justify-between items-center flex-shrink-0 mt-6 pt-6 border-t border-neutral-700">
-                                    <button
-                                        onClick={() => setStep(3)}
-                                        disabled={sending}
-                                        className="flex items-center gap-2 px-6 py-2 bg-neutral-700 text-white rounded-lg hover:bg-neutral-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        <ArrowLeft className="w-4 h-4" />
-                                        Voltar aos Scripts
-                                    </button>
-
-                                    {/* Componente de Progresso de Envio - Ultra Compacto */}
+                                <div className="flex flex-col gap-4 flex-shrink-0 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-neutral-700">
+                                    {/* Componente de Progresso de Envio - Versão Mobile/Desktop */}
                                     {sending && (
-                                        <div className="flex-1 mx-6">
-                                            <div className="bg-gradient-to-r from-neutral-800 to-neutral-900 rounded-lg px-4 py-2.5 border border-neutral-700/50 shadow-lg h-11 flex items-center gap-4">
-                                                {/* Ícone + Status */}
-                                                <div className="flex items-center gap-2 flex-shrink-0">
-                                                    <div className="relative">
-                                                        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                                                            <Send className="w-3 h-3 text-white" />
+                                        <div className="w-full">
+                                            {/* Versão Desktop */}
+                                            <div className="hidden lg:block">
+                                                <div className="bg-gradient-to-r from-neutral-800 to-neutral-900 rounded-lg px-4 py-2.5 border border-neutral-700/50 shadow-lg h-11 flex items-center gap-4">
+                                                    {/* Ícone + Status */}
+                                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                                        <div className="relative">
+                                                            <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                                                                <Send className="w-3 h-3 text-white" />
+                                                            </div>
+                                                            <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full">
+                                                                <Loader2 className="w-1.5 h-1.5 animate-spin text-neutral-900" />
+                                                            </div>
                                                         </div>
-                                                        <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full">
-                                                            <Loader2 className="w-1.5 h-1.5 animate-spin text-neutral-900" />
+                                                        <div className="text-xs">
+                                                            <span className="text-white font-medium">Enviando</span>
+                                                            {sendingProgress.totalBatches > 1 && (
+                                                                <span className="text-neutral-400 ml-1">
+                                                                    {sendingProgress.currentBatch}/{sendingProgress.totalBatches}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
-                                                    <div className="text-xs">
-                                                        <span className="text-white font-medium">Enviando</span>
-                                                        {sendingProgress.totalBatches > 1 && (
-                                                            <span className="text-neutral-400 ml-1">
-                                                                {sendingProgress.currentBatch}/{sendingProgress.totalBatches}
-                                                            </span>
+                                                    {/* Barra de Progresso Compacta */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="flex-1 bg-neutral-700 rounded-full h-2 overflow-hidden">
+                                                                <div className="flex h-full">
+                                                                    <div
+                                                                        className="bg-gradient-to-r from-green-500 to-green-600 transition-all duration-300 ease-out"
+                                                                        style={{
+                                                                            width: `${sendingProgress.total > 0 ? (sendingProgress.sent / sendingProgress.total) * 100 : 0}%`
+                                                                        }}
+                                                                    />
+                                                                    {sendingProgress.failed > 0 && (
+                                                                        <div
+                                                                            className="bg-gradient-to-r from-red-500 to-red-600 transition-all duration-300 ease-out"
+                                                                            style={{
+                                                                                width: `${sendingProgress.total > 0 ? (sendingProgress.failed / sendingProgress.total) * 100 : 0}%`
+                                                                            }}
+                                                                        />
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-xs font-bold text-white min-w-[2rem] text-right">
+                                                                {sendingProgress.total > 0
+                                                                    ? Math.round(((sendingProgress.sent + sendingProgress.failed) / sendingProgress.total) * 100)
+                                                                    : 0
+                                                                }%
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {/* Estatísticas Ultra Compactas */}
+                                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                                        <div className="text-xs text-neutral-300">
+                                                            {sendingProgress.sent + sendingProgress.failed}/{sendingProgress.total}
+                                                        </div>
+                                                        {sendingProgress.sent > 0 && (
+                                                            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-green-900/40 rounded text-xs">
+                                                                <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
+                                                                <span className="text-green-300 font-medium">{sendingProgress.sent}</span>
+                                                            </div>
+                                                        )}
+                                                        {sendingProgress.failed > 0 && (
+                                                            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-900/40 rounded text-xs">
+                                                                <div className="w-1.5 h-1.5 bg-red-400 rounded-full"></div>
+                                                                <span className="text-red-300 font-medium">{sendingProgress.failed}</span>
+                                                            </div>
                                                         )}
                                                     </div>
                                                 </div>
+                                            </div>
 
-                                                {/* Barra de Progresso Compacta */}
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="flex-1 bg-neutral-700 rounded-full h-2 overflow-hidden">
+                                            {/* Versão Mobile */}
+                                            <div className="lg:hidden">
+                                                <div className="bg-gradient-to-r from-neutral-800 to-neutral-900 rounded-lg p-4 border border-neutral-700/50 shadow-lg">
+                                                    <div className="flex items-center gap-3 mb-3">
+                                                        <div className="relative">
+                                                            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                                                                <Send className="w-4 h-4 text-white" />
+                                                            </div>
+                                                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full flex items-center justify-center">
+                                                                <Loader2 className="w-2 h-2 animate-spin text-neutral-900" />
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-white font-medium">Enviando emails</div>
+                                                            <div className="text-xs text-neutral-400">
+                                                                {sendingProgress.currentEmail}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center justify-between text-sm">
+                                                            <span className="text-neutral-300">Progresso</span>
+                                                            <span className="text-white font-bold">
+                                                                {sendingProgress.total > 0
+                                                                    ? Math.round(((sendingProgress.sent + sendingProgress.failed) / sendingProgress.total) * 100)
+                                                                    : 0
+                                                                }%
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="bg-neutral-700 rounded-full h-3 overflow-hidden">
                                                             <div className="flex h-full">
                                                                 <div
                                                                     className="bg-gradient-to-r from-green-500 to-green-600 transition-all duration-300 ease-out"
@@ -1456,62 +1663,69 @@ export default function SendEmail() {
                                                                 )}
                                                             </div>
                                                         </div>
-                                                        <div className="text-xs font-bold text-white min-w-[2rem] text-right">
-                                                            {sendingProgress.total > 0
-                                                                ? Math.round(((sendingProgress.sent + sendingProgress.failed) / sendingProgress.total) * 100)
-                                                                : 0
-                                                            }%
-                                                        </div>
-                                                    </div>
-                                                </div>
 
-                                                {/* Estatísticas Ultra Compactas */}
-                                                <div className="flex items-center gap-2 flex-shrink-0">
-                                                    <div className="text-xs text-neutral-300">
-                                                        {sendingProgress.sent + sendingProgress.failed}/{sendingProgress.total}
+                                                        <div className="flex items-center justify-between text-sm">
+                                                            <div className="flex items-center gap-3">
+                                                                {sendingProgress.sent > 0 && (
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                                                        <span className="text-green-300">{sendingProgress.sent} enviados</span>
+                                                                    </div>
+                                                                )}
+                                                                {sendingProgress.failed > 0 && (
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                                                                        <span className="text-red-300">{sendingProgress.failed} falhas</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <span className="text-neutral-400">
+                                                                {sendingProgress.sent + sendingProgress.failed}/{sendingProgress.total}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                    {sendingProgress.sent > 0 && (
-                                                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-green-900/40 rounded text-xs">
-                                                            <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
-                                                            <span className="text-green-300 font-medium">{sendingProgress.sent}</span>
-                                                        </div>
-                                                    )}
-                                                    {sendingProgress.failed > 0 && (
-                                                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-900/40 rounded text-xs">
-                                                            <div className="w-1.5 h-1.5 bg-red-400 rounded-full"></div>
-                                                            <span className="text-red-300 font-medium">{sendingProgress.failed}</span>
-                                                        </div>
-                                                    )}
                                                 </div>
                                             </div>
                                         </div>
                                     )}
 
-                                    <div className="flex items-center gap-4">
-                                        {!sending && (
-                                            <div className="flex items-center gap-2 text-sm text-neutral-400">
-                                                <Check className="w-4 h-4 text-green-400" />
-                                                Email pronto para envio
-                                            </div>
-                                        )}
-
+                                    {/* Botões de ação */}
+                                    <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-0">
                                         <button
-                                            onClick={sendEmail}
-                                            disabled={sending || !smtpConfig?.host}
-                                            className="flex items-center gap-2 px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg"
+                                            onClick={() => setStep(3)}
+                                            disabled={sending}
+                                            className="flex items-center justify-center gap-2 px-6 py-3 sm:py-2 bg-neutral-700 text-white rounded-lg hover:bg-neutral-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-2 sm:order-1"
                                         >
-                                            {sending ? (
-                                                <>
-                                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                                    {sendingProgress.isComplete ? 'Concluído' : 'Enviando...'}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Send className="w-5 h-5" />
-                                                    Enviar Email
-                                                </>
-                                            )}
+                                            <ArrowLeft className="w-4 h-4" />
+                                            Anterior
                                         </button>
+
+                                        <div className="flex items-center gap-4 order-1 sm:order-2">
+                                            {!sending && (
+                                                <div className="flex items-center gap-2 text-sm text-neutral-400">
+                                                    <Check className="w-4 h-4 text-green-400" />
+                                                    Email pronto para envio
+                                                </div>
+                                            )}
+
+                                            <button
+                                                onClick={sendEmail}
+                                                disabled={sending || !smtpConfig?.host}
+                                                className="flex items-center gap-2 px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg"
+                                            >
+                                                {sending ? (
+                                                    <>
+                                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                                        {sendingProgress.isComplete ? 'Concluído' : 'Enviando...'}
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Send className="w-5 h-5" />
+                                                        Enviar Email
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
