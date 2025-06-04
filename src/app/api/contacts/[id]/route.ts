@@ -6,10 +6,10 @@ const prisma = new PrismaClient();
 // GET - Buscar contato por ID
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id } = params;
+        const { id } = await params;
         const contact = await prisma.contact.findUnique({
             where: { id },
             include: {
@@ -40,10 +40,10 @@ export async function GET(
 // PUT - Atualizar contato
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id } = params;
+        const { id } = await params;
         const body = await request.json();
 
         const {
@@ -125,10 +125,10 @@ export async function PUT(
 // DELETE - Deletar contato
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id } = params;
+        const { id } = await params;
 
         // Verificar se o contato existe
         const existingContact = await prisma.contact.findUnique({
