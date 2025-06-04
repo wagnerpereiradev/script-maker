@@ -5,10 +5,10 @@ import { isValidEmailClient, isValidReferrer, getNextStatus, validateTrackingTok
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { trackingId: string } }
+    { params }: { params: Promise<{ trackingId: string }> }
 ) {
     try {
-        const { trackingId } = params;
+        const { trackingId } = await params;
         const { searchParams } = new URL(request.url);
         const token = searchParams.get('t');
 
@@ -96,7 +96,7 @@ export async function GET(
     } catch (error) {
         console.error('❌ ERROR in tracking:', error);
         // Sempre retornar pixel mesmo em caso de erro
-        const { trackingId } = params;
+        const { trackingId } = await params;
         return getOptimizedTrackingPixelResponse(trackingId);
     }
 }
