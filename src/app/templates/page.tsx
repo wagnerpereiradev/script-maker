@@ -808,22 +808,24 @@ export default function Templates() {
             <div className="p-8">
                 <div className="max-w-6xl mx-auto">
                     {/* Header */}
-                    <div className="mb-8 flex items-center justify-between">
-                        <div>
-                            <h1 className="text-3xl font-bold text-white mb-2">
-                                Modelos de Email
-                            </h1>
-                            <p className="text-neutral-400">
-                                Gerencie seus modelos de email HTML reutilizáveis
-                            </p>
+                    <div className="mb-6 lg:mb-8">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div>
+                                <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+                                    Modelos de Email
+                                </h1>
+                                <p className="text-neutral-400">
+                                    Gerencie seus modelos de email HTML reutilizáveis
+                                </p>
+                            </div>
+                            <button
+                                onClick={openCreateModal}
+                                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-white text-black font-medium rounded-lg hover:bg-neutral-200 transition-colors cursor-pointer"
+                            >
+                                <Plus className="h-4 w-4" />
+                                <span className="sm:inline">Novo Modelo</span>
+                            </button>
                         </div>
-                        <button
-                            onClick={openCreateModal}
-                            className="flex items-center gap-2 px-4 py-2 bg-white text-black font-medium rounded-lg hover:bg-neutral-200 transition-colors cursor-pointer"
-                        >
-                            <Plus className="h-4 w-4" />
-                            Novo Modelo
-                        </button>
                     </div>
 
                     {/* Message */}
@@ -832,20 +834,23 @@ export default function Templates() {
                             ? 'bg-green-900/50 border border-green-700 text-green-300'
                             : 'bg-red-900/50 border border-red-700 text-red-300'
                             }`}>
-                            {message.text}
-                            <button
-                                onClick={() => setMessage(null)}
-                                className="float-right text-current hover:opacity-70 cursor-pointer"
-                            >
-                                <X className="h-4 w-4" />
-                            </button>
+                            <div className="flex items-start justify-between">
+                                <span className="flex-1">{message.text}</span>
+                                <button
+                                    onClick={() => setMessage(null)}
+                                    className="text-current hover:opacity-70 cursor-pointer ml-4 flex-shrink-0"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
                         </div>
                     )}
 
                     {/* Filters and Search */}
-                    <div className="bg-neutral-gradient rounded-lg p-6 border border-neutral-800 mb-6">
-                        <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
-                            <div className="flex-1">
+                    <div className="bg-neutral-gradient rounded-lg p-4 sm:p-6 border border-neutral-800 mb-6">
+                        <form onSubmit={handleSearch} className="space-y-4">
+                            {/* Search Bar */}
+                            <div className="w-full">
                                 <div className="relative">
                                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-400 pointer-events-none" />
                                     <input
@@ -857,7 +862,9 @@ export default function Templates() {
                                     />
                                 </div>
                             </div>
-                            <div className="flex gap-3">
+
+                            {/* Filters */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                 <select
                                     className="px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-white cursor-pointer"
                                     value={category}
@@ -878,12 +885,28 @@ export default function Templates() {
                                     <option value="true">Ativos</option>
                                     <option value="false">Inativos</option>
                                 </select>
-                                <button
-                                    type="submit"
-                                    className="px-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white hover:bg-neutral-700 transition-colors cursor-pointer"
-                                >
-                                    <Filter className="h-4 w-4" />
-                                </button>
+                                <div className="sm:col-span-2 lg:col-span-2 flex gap-3">
+                                    <button
+                                        type="submit"
+                                        className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 rounded-lg text-white transition-colors cursor-pointer font-medium"
+                                    >
+                                        <Filter className="h-4 w-4 mx-auto sm:mr-2 sm:inline" />
+                                        <span className="hidden sm:inline">Filtrar</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setSearch('');
+                                            setCategory('');
+                                            setIsActive('');
+                                            setCurrentPage(1);
+                                            fetchTemplates();
+                                        }}
+                                        className="px-4 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white hover:bg-neutral-700 transition-colors cursor-pointer"
+                                    >
+                                        Limpar
+                                    </button>
+                                </div>
                             </div>
                         </form>
                     </div>
@@ -915,15 +938,15 @@ export default function Templates() {
                     ) : (
                         <div className="space-y-3">
                             {/* Select All Header - Mais Compacto */}
-                            <div className="flex items-center justify-between p-3 bg-neutral-800 rounded-lg">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-neutral-800 rounded-lg">
                                 <CustomCheckbox
                                     checked={selectAll}
                                     onChange={toggleSelectAll}
                                     label={`Selecionar todos (${templates.length} modelos)`}
                                 />
                                 {selectedTemplates.size > 0 && (
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-blue-300 text-sm">
+                                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                                        <span className="text-blue-300 text-sm flex-1 sm:flex-none">
                                             {selectedTemplates.size} modelo(s) selecionado(s)
                                         </span>
                                         <button
@@ -938,7 +961,7 @@ export default function Templates() {
                                 )}
                             </div>
 
-                            {/* Lista de Templates - Layout Compacto */}
+                            {/* Lista de Templates - Layout Compacto e Responsivo */}
                             {templates.map((template) => (
                                 <div
                                     key={template.id}
@@ -947,82 +970,86 @@ export default function Templates() {
                                         : 'border-neutral-800 hover:border-neutral-700'
                                         }`}
                                 >
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex flex-col lg:flex-row items-start gap-3">
                                         {/* Checkbox */}
-                                        <div className="flex-shrink-0">
+                                        <div className="flex-shrink-0 lg:mt-1">
                                             <CustomCheckbox
                                                 checked={selectedTemplates.has(template.id)}
                                                 onChange={() => toggleSelectTemplate(template.id)}
                                             />
                                         </div>
 
-                                        {/* Conteúdo Principal - Layout Horizontal */}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between">
+                                        {/* Conteúdo Principal */}
+                                        <div className="flex-1 min-w-0 w-full">
+                                            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
                                                 {/* Informações do Template */}
-                                                <div className="flex-1 min-w-0 pr-4">
+                                                <div className="flex-1 min-w-0 w-full lg:pr-4">
                                                     {/* Linha 1: Nome + Status + Categoria */}
-                                                    <div className="flex items-center gap-3 mb-1">
-                                                        <h3 className="text-base font-semibold text-white truncate">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                                                        <h3 className="text-base font-semibold text-white truncate flex-1 min-w-0">
                                                             {template.name}
                                                         </h3>
-                                                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs flex-shrink-0 ${template.isActive
-                                                            ? 'bg-green-900/50 text-green-300 border border-green-700'
-                                                            : 'bg-red-900/50 text-red-300 border border-red-700'
-                                                            }`}>
-                                                            {template.isActive ? <Power className="h-3 w-3" /> : <PowerOff className="h-3 w-3" />}
-                                                            {template.isActive ? 'Ativo' : 'Inativo'}
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs flex-shrink-0 ${template.isActive
+                                                                ? 'bg-green-900/50 text-green-300 border border-green-700'
+                                                                : 'bg-red-900/50 text-red-300 border border-red-700'
+                                                                }`}>
+                                                                {template.isActive ? <Power className="h-3 w-3" /> : <PowerOff className="h-3 w-3" />}
+                                                                {template.isActive ? 'Ativo' : 'Inativo'}
+                                                            </div>
+                                                            {template.category && (
+                                                                <span className={`px-2 py-0.5 rounded text-xs font-medium border flex-shrink-0 ${getCategoryColor(template.category)}`}>
+                                                                    {getCategoryLabel(template.category)}
+                                                                </span>
+                                                            )}
                                                         </div>
-                                                        {template.category && (
-                                                            <span className={`px-2 py-0.5 rounded text-xs font-medium border flex-shrink-0 ${getCategoryColor(template.category)}`}>
-                                                                {getCategoryLabel(template.category)}
-                                                            </span>
-                                                        )}
                                                     </div>
 
                                                     {/* Linha 2: Assunto */}
-                                                    <p className="text-neutral-300 text-sm mb-1 truncate font-medium">
+                                                    <p className="text-neutral-300 text-sm mb-2 truncate font-medium">
                                                         {template.subject}
                                                     </p>
 
                                                     {/* Linha 3: Descrição + Data */}
-                                                    <div className="flex items-center justify-between">
-                                                        <p className="text-neutral-400 text-xs truncate pr-4">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4">
+                                                        <p className="text-neutral-400 text-xs truncate">
                                                             {template.description || 'Sem descrição'}
                                                         </p>
                                                         <div className="flex items-center text-xs text-neutral-500 flex-shrink-0">
                                                             <Calendar className="h-3 w-3 mr-1" />
-                                                            {new Date(template.updatedAt).toLocaleDateString('pt-BR')}
+                                                            <span className="whitespace-nowrap">
+                                                                {new Date(template.updatedAt).toLocaleDateString('pt-BR')}
+                                                            </span>
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                {/* Botões de Ação - Compactos */}
-                                                <div className="flex gap-1.5 flex-shrink-0">
+                                                {/* Botões de Ação - Responsivos */}
+                                                <div className="flex gap-1.5 flex-shrink-0 w-full lg:w-auto">
                                                     <button
                                                         onClick={() => openViewModal(template.id)}
-                                                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-neutral-800 text-white rounded-md hover:bg-neutral-700 transition-colors border border-neutral-600 text-xs cursor-pointer"
+                                                        className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-neutral-800 text-white rounded-md hover:bg-neutral-700 transition-colors border border-neutral-600 text-xs cursor-pointer"
                                                         title="Visualizar template"
                                                     >
                                                         <Eye className="h-3.5 w-3.5" />
-                                                        <span className="hidden sm:inline">Ver</span>
+                                                        <span className="sm:inline">Ver</span>
                                                     </button>
                                                     <button
                                                         onClick={() => openViewModal(template.id)}
-                                                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs cursor-pointer"
+                                                        className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs cursor-pointer"
                                                         title="Editar template"
                                                     >
                                                         <Edit3 className="h-3.5 w-3.5" />
-                                                        <span className="hidden sm:inline">Editar</span>
+                                                        <span className="sm:inline">Editar</span>
                                                     </button>
                                                     <button
                                                         onClick={() => deleteTemplate(template.id)}
                                                         disabled={deleting}
-                                                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                                                        className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-xs disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                                                         title="Deletar template"
                                                     >
                                                         <Trash2 className="h-3.5 w-3.5" />
-                                                        <span className="hidden sm:inline">Deletar</span>
+                                                        <span className="sm:inline">Deletar</span>
                                                     </button>
                                                 </div>
                                             </div>
@@ -1035,24 +1062,27 @@ export default function Templates() {
 
                     {/* Pagination */}
                     {templates.length > 0 && totalPages > 1 && (
-                        <div className="mt-8 flex items-center justify-center">
+                        <div className="mt-6 sm:mt-8 flex items-center justify-center">
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                     disabled={currentPage === 1}
-                                    className="px-3 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition-colors border border-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                    className="px-3 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition-colors border border-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-sm"
                                 >
-                                    Anterior
+                                    <span className="hidden sm:inline">Anterior</span>
+                                    <span className="sm:hidden">Ant</span>
                                 </button>
-                                <span className="px-4 py-2 text-neutral-400 select-none">
-                                    Página {currentPage} de {totalPages}
+                                <span className="px-3 sm:px-4 py-2 text-neutral-400 select-none text-sm">
+                                    <span className="hidden sm:inline">Página {currentPage} de {totalPages}</span>
+                                    <span className="sm:hidden">{currentPage}/{totalPages}</span>
                                 </span>
                                 <button
                                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                     disabled={currentPage === totalPages}
-                                    className="px-3 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition-colors border border-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                    className="px-3 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition-colors border border-neutral-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-sm"
                                 >
-                                    Próxima
+                                    <span className="hidden sm:inline">Próxima</span>
+                                    <span className="sm:hidden">Prox</span>
                                 </button>
                             </div>
                         </div>
@@ -1061,38 +1091,38 @@ export default function Templates() {
 
                 {/* Create Modal */}
                 {showCreateModal && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                        <div className="bg-neutral-900 rounded-xl max-w-7xl w-full h-[90vh] border border-neutral-700 shadow-2xl flex flex-col">
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50">
+                        <div className="bg-neutral-900 rounded-xl w-full max-w-7xl h-[95vh] sm:h-[90vh] border border-neutral-700 shadow-2xl flex flex-col">
                             {/* Modal Header */}
-                            <div className="px-6 py-4 border-b border-neutral-700 flex items-center justify-between bg-gradient-to-r from-neutral-800 to-neutral-900 rounded-t-xl">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                                        <Plus className="h-5 w-5 text-white" />
+                            <div className="px-4 sm:px-6 py-4 border-b border-neutral-700 flex items-center justify-between bg-gradient-to-r from-neutral-800 to-neutral-900 rounded-t-xl">
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                        <Plus className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                                     </div>
-                                    <div>
-                                        <h2 className="text-xl font-bold text-white">
+                                    <div className="min-w-0 flex-1">
+                                        <h2 className="text-lg sm:text-xl font-bold text-white truncate">
                                             Criar Novo Template
                                         </h2>
-                                        <p className="text-sm text-neutral-400">
+                                        <p className="text-xs sm:text-sm text-neutral-400 hidden sm:block">
                                             Crie um modelo de email reutilizável
                                         </p>
                                     </div>
                                 </div>
                                 <button
                                     onClick={closeModals}
-                                    className="text-neutral-400 hover:text-white transition-colors p-2 hover:bg-neutral-800 rounded-lg cursor-pointer"
+                                    className="text-neutral-400 hover:text-white transition-colors p-2 hover:bg-neutral-800 rounded-lg cursor-pointer flex-shrink-0"
                                 >
-                                    <X className="h-6 w-6" />
+                                    <X className="h-5 w-5 sm:h-6 sm:w-6" />
                                 </button>
                             </div>
 
-                            {/* Modal Content - Com flex-1 para ocupar espaço disponível */}
-                            <div className="flex flex-1 overflow-hidden">
+                            {/* Modal Content - Responsivo */}
+                            <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
                                 {/* Left Side - Form */}
-                                <div className="w-1/2 border-r border-neutral-700 flex flex-col">
-                                    <div className="p-6 overflow-y-auto flex-1">
-                                        <div className="space-y-6">
-                                            <div className="grid grid-cols-2 gap-4">
+                                <div className="w-full lg:w-1/2 border-b lg:border-b-0 lg:border-r border-neutral-700 flex flex-col max-h-[50vh] lg:max-h-none">
+                                    <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+                                        <div className="space-y-4 sm:space-y-6">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div>
                                                     <label className="block text-sm font-medium text-white mb-2">
                                                         Nome do Template *
@@ -1101,7 +1131,7 @@ export default function Templates() {
                                                         type="text"
                                                         value={formData.name}
                                                         onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                                                        className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-text"
+                                                        className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-text text-sm"
                                                         placeholder="Ex: Cold Outreach Básico"
                                                         required
                                                     />
@@ -1114,7 +1144,7 @@ export default function Templates() {
                                                     <select
                                                         value={formData.category}
                                                         onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                                                        className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+                                                        className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-pointer text-sm"
                                                     >
                                                         <option value="">Selecione uma categoria</option>
                                                         <option value="cold_outreach">Primeiro Contato</option>
@@ -1132,7 +1162,7 @@ export default function Templates() {
                                                 <textarea
                                                     value={formData.description}
                                                     onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                                                    className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-text h-20 resize-none"
+                                                    className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-text h-16 sm:h-20 resize-none text-sm"
                                                     placeholder="Descrição opcional do template"
                                                 />
                                             </div>
@@ -1145,29 +1175,29 @@ export default function Templates() {
                                                     type="text"
                                                     value={formData.subject}
                                                     onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
-                                                    className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-text"
+                                                    className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-text text-sm"
                                                     placeholder="Ex: Proposta de Parceria - {{companyName}}"
                                                     required
                                                 />
                                             </div>
 
-                                            <div className="flex items-center gap-3 p-4 bg-neutral-800/50 rounded-lg">
+                                            <div className="flex items-center gap-3 p-3 sm:p-4 bg-neutral-800/50 rounded-lg">
                                                 <CustomCheckbox
                                                     checked={formData.isActive}
                                                     onChange={() => setFormData(prev => ({ ...prev, isActive: !prev.isActive }))}
                                                 />
                                                 <div>
-                                                    <span className="text-white font-medium">Template ativo</span>
+                                                    <span className="text-white font-medium text-sm">Template ativo</span>
                                                     <p className="text-xs text-neutral-400">Templates ativos aparecerão na lista de seleção</p>
                                                 </div>
                                             </div>
 
                                             <div>
-                                                <div className="flex items-center justify-between mb-3">
+                                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 mb-3">
                                                     <label className="block text-sm font-medium text-white">
                                                         Conteúdo HTML *
                                                     </label>
-                                                    <div className="flex gap-2">
+                                                    <div className="flex flex-wrap gap-2">
                                                         <button
                                                             type="button"
                                                             onClick={() => setShowVariablesHelper(!showVariablesHelper)}
@@ -1179,19 +1209,19 @@ export default function Templates() {
                                                 </div>
 
                                                 {showVariablesHelper && (
-                                                    <div className="mb-4 bg-neutral-800 rounded-lg p-4 border border-neutral-700">
-                                                        <h4 className="text-white font-medium mb-3 flex items-center gap-2">
+                                                    <div className="mb-4 bg-neutral-800 rounded-lg p-3 sm:p-4 border border-neutral-700">
+                                                        <h4 className="text-white font-medium mb-3 flex items-center gap-2 text-sm">
                                                             <FileText className="h-4 w-4 text-blue-400" />
                                                             Variáveis Disponíveis
                                                         </h4>
-                                                        <div className="grid grid-cols-1 gap-4 max-h-48 overflow-y-auto">
+                                                        <div className="grid grid-cols-1 gap-3 sm:gap-4 max-h-32 sm:max-h-48 overflow-y-auto">
                                                             <div>
                                                                 <h5 className="text-xs font-semibold text-neutral-300 uppercase tracking-wide mb-2 flex items-center gap-1">
                                                                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                                                    Dados do Contato e Empresa
+                                                                    Dados do Contato
                                                                 </h5>
                                                                 <div className="flex flex-wrap gap-1">
-                                                                    {commonVariables.filter(v => v.category === 'prospect').map((variable) => (
+                                                                    {commonVariables.filter(v => v.category === 'prospect').slice(0, 6).map((variable) => (
                                                                         <button
                                                                             key={variable.name}
                                                                             type="button"
@@ -1206,54 +1236,16 @@ export default function Templates() {
                                                             </div>
                                                             <div>
                                                                 <h5 className="text-xs font-semibold text-neutral-300 uppercase tracking-wide mb-2 flex items-center gap-1">
-                                                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                                                    Contexto do Negócio
-                                                                </h5>
-                                                                <div className="flex flex-wrap gap-1">
-                                                                    {commonVariables.filter(v => v.category === 'business').map((variable) => (
-                                                                        <button
-                                                                            key={variable.name}
-                                                                            type="button"
-                                                                            onClick={() => insertVariable(variable.name)}
-                                                                            className="px-2 py-1 bg-green-900/30 text-green-300 rounded text-xs hover:bg-green-900/50 transition-colors cursor-pointer border border-green-700/30"
-                                                                            title={variable.label}
-                                                                        >
-                                                                            {`{{${variable.name}}}`}
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <h5 className="text-xs font-semibold text-neutral-300 uppercase tracking-wide mb-2 flex items-center gap-1">
                                                                     <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                                                                    Dados do Remetente
+                                                                    Remetente
                                                                 </h5>
                                                                 <div className="flex flex-wrap gap-1">
-                                                                    {commonVariables.filter(v => v.category === 'sender').map((variable) => (
+                                                                    {commonVariables.filter(v => v.category === 'sender').slice(0, 4).map((variable) => (
                                                                         <button
                                                                             key={variable.name}
                                                                             type="button"
                                                                             onClick={() => insertVariable(variable.name)}
                                                                             className="px-2 py-1 bg-purple-900/30 text-purple-300 rounded text-xs hover:bg-purple-900/50 transition-colors cursor-pointer border border-purple-700/30"
-                                                                            title={variable.label}
-                                                                        >
-                                                                            {`{{${variable.name}}}`}
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <h5 className="text-xs font-semibold text-neutral-300 uppercase tracking-wide mb-2 flex items-center gap-1">
-                                                                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                                                                    Agendamento e CTA
-                                                                </h5>
-                                                                <div className="flex flex-wrap gap-1">
-                                                                    {commonVariables.filter(v => v.category === 'meeting' || v.category === 'cta').map((variable) => (
-                                                                        <button
-                                                                            key={variable.name}
-                                                                            type="button"
-                                                                            onClick={() => insertVariable(variable.name)}
-                                                                            className="px-2 py-1 bg-orange-900/30 text-orange-300 rounded text-xs hover:bg-orange-900/50 transition-colors cursor-pointer border border-orange-700/30"
                                                                             title={variable.label}
                                                                         >
                                                                             {`{{${variable.name}}}`}
@@ -1269,6 +1261,7 @@ export default function Templates() {
                                                     value={formData.htmlContent}
                                                     onChange={(value) => setFormData(prev => ({ ...prev, htmlContent: value }))}
                                                     placeholder="Digite ou cole o código HTML aqui..."
+                                                    className="h-48 sm:h-auto"
                                                 />
                                             </div>
                                         </div>
@@ -1276,16 +1269,16 @@ export default function Templates() {
                                 </div>
 
                                 {/* Right Side - Preview */}
-                                <div className="w-1/2 flex flex-col">
-                                    <div className="p-6 border-b border-neutral-700 bg-neutral-800/30">
-                                        <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
-                                            <Eye className="h-5 w-5 text-blue-400" />
+                                <div className="w-full lg:w-1/2 flex flex-col">
+                                    <div className="p-4 sm:p-6 border-b border-neutral-700 bg-neutral-800/30">
+                                        <h3 className="text-base sm:text-lg font-semibold text-white mb-1 flex items-center gap-2">
+                                            <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400" />
                                             Preview do Template
                                         </h3>
-                                        <p className="text-sm text-neutral-400">Visualização em tempo real</p>
+                                        <p className="text-xs sm:text-sm text-neutral-400">Visualização em tempo real</p>
                                     </div>
 
-                                    <div className="flex-1">
+                                    <div className="flex-1 min-h-0">
                                         <EmailTemplatePreview
                                             sendType="individual"
                                             selectedTemplate={mockTemplate}
@@ -1300,24 +1293,24 @@ export default function Templates() {
                                 </div>
                             </div>
 
-                            {/* Modal Footer - Fixo na parte inferior */}
-                            <div className="px-6 py-4 border-t border-neutral-700 bg-neutral-800/30 rounded-b-xl">
-                                <div className="flex items-center justify-between">
-                                    <div className="text-sm text-neutral-400">
+                            {/* Modal Footer - Responsivo */}
+                            <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-neutral-700 bg-neutral-800/30 rounded-b-xl">
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                                    <div className="text-xs sm:text-sm text-neutral-400 order-2 sm:order-1">
                                         * Campos obrigatórios
                                     </div>
-                                    <div className="flex gap-3">
+                                    <div className="flex gap-2 sm:gap-3 order-1 sm:order-2">
                                         <button
                                             type="button"
                                             onClick={closeModals}
-                                            className="px-6 py-2.5 bg-neutral-700 text-neutral-300 rounded-lg hover:bg-neutral-600 transition-colors border border-neutral-600 cursor-pointer font-medium"
+                                            className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 bg-neutral-700 text-neutral-300 rounded-lg hover:bg-neutral-600 transition-colors border border-neutral-600 cursor-pointer font-medium text-sm"
                                         >
                                             Cancelar
                                         </button>
                                         <button
                                             type="submit"
                                             onClick={handleCreate}
-                                            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all cursor-pointer font-medium shadow-lg"
+                                            className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all cursor-pointer font-medium shadow-lg text-sm"
                                         >
                                             Criar Template
                                         </button>
@@ -1330,38 +1323,38 @@ export default function Templates() {
 
                 {/* View/Edit Modal */}
                 {showViewModal && selectedTemplate && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                        <div className="bg-neutral-900 rounded-xl max-w-7xl w-full h-[90vh] border border-neutral-700 shadow-2xl flex flex-col">
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50">
+                        <div className="bg-neutral-900 rounded-xl w-full max-w-7xl h-[95vh] sm:h-[90vh] border border-neutral-700 shadow-2xl flex flex-col">
                             {/* Modal Header */}
-                            <div className="px-6 py-4 border-b border-neutral-700 flex items-center justify-between bg-gradient-to-r from-neutral-800 to-neutral-900 rounded-t-xl">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
-                                        <Edit3 className="h-5 w-5 text-white" />
+                            <div className="px-4 sm:px-6 py-4 border-b border-neutral-700 flex items-center justify-between bg-gradient-to-r from-neutral-800 to-neutral-900 rounded-t-xl">
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                        <Edit3 className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                                     </div>
-                                    <div>
-                                        <h2 className="text-xl font-bold text-white">
+                                    <div className="min-w-0 flex-1">
+                                        <h2 className="text-lg sm:text-xl font-bold text-white truncate">
                                             {selectedTemplate.name}
                                         </h2>
-                                        <p className="text-sm text-neutral-400">
+                                        <p className="text-xs sm:text-sm text-neutral-400 hidden sm:block">
                                             Editar modelo de email
                                         </p>
                                     </div>
                                 </div>
                                 <button
                                     onClick={closeModals}
-                                    className="text-neutral-400 hover:text-white transition-colors p-2 hover:bg-neutral-800 rounded-lg cursor-pointer"
+                                    className="text-neutral-400 hover:text-white transition-colors p-2 hover:bg-neutral-800 rounded-lg cursor-pointer flex-shrink-0"
                                 >
-                                    <X className="h-6 w-6" />
+                                    <X className="h-5 w-5 sm:h-6 sm:w-6" />
                                 </button>
                             </div>
 
                             {/* Modal Content */}
-                            <div className="flex flex-1 overflow-hidden">
+                            <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
                                 {/* Left Side - Form */}
-                                <div className="w-1/2 border-r border-neutral-700 flex flex-col">
-                                    <div className="p-6 overflow-y-auto flex-1">
-                                        <div className="space-y-6">
-                                            <div className="grid grid-cols-2 gap-4">
+                                <div className="w-full lg:w-1/2 border-b lg:border-b-0 lg:border-r border-neutral-700 flex flex-col max-h-[50vh] lg:max-h-none">
+                                    <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+                                        <div className="space-y-4 sm:space-y-6">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div>
                                                     <label className="block text-sm font-medium text-white mb-2">
                                                         Nome do Template *
@@ -1370,7 +1363,7 @@ export default function Templates() {
                                                         type="text"
                                                         value={formData.name}
                                                         onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                                                        className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-text"
+                                                        className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-text text-sm"
                                                         required
                                                     />
                                                 </div>
@@ -1382,7 +1375,7 @@ export default function Templates() {
                                                     <select
                                                         value={formData.category}
                                                         onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                                                        className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+                                                        className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-pointer text-sm"
                                                     >
                                                         <option value="">Selecione uma categoria</option>
                                                         <option value="cold_outreach">Primeiro Contato</option>
@@ -1400,7 +1393,7 @@ export default function Templates() {
                                                 <textarea
                                                     value={formData.description}
                                                     onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                                                    className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-text h-20 resize-none"
+                                                    className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-text h-16 sm:h-20 resize-none text-sm"
                                                 />
                                             </div>
 
@@ -1412,28 +1405,28 @@ export default function Templates() {
                                                     type="text"
                                                     value={formData.subject}
                                                     onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
-                                                    className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-text"
+                                                    className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-600 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 cursor-text text-sm"
                                                     required
                                                 />
                                             </div>
 
-                                            <div className="flex items-center gap-3 p-4 bg-neutral-800/50 rounded-lg">
+                                            <div className="flex items-center gap-3 p-3 sm:p-4 bg-neutral-800/50 rounded-lg">
                                                 <CustomCheckbox
                                                     checked={formData.isActive}
                                                     onChange={() => setFormData(prev => ({ ...prev, isActive: !prev.isActive }))}
                                                 />
                                                 <div>
-                                                    <span className="text-white font-medium">Template ativo</span>
+                                                    <span className="text-white font-medium text-sm">Template ativo</span>
                                                     <p className="text-xs text-neutral-400">Templates ativos aparecerão na lista de seleção</p>
                                                 </div>
                                             </div>
 
                                             <div>
-                                                <div className="flex items-center justify-between mb-3">
+                                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 mb-3">
                                                     <label className="block text-sm font-medium text-white">
                                                         Conteúdo HTML *
                                                     </label>
-                                                    <div className="flex gap-2">
+                                                    <div className="flex flex-wrap gap-2">
                                                         <button
                                                             type="button"
                                                             onClick={() => setShowVariablesHelper(!showVariablesHelper)}
@@ -1445,19 +1438,19 @@ export default function Templates() {
                                                 </div>
 
                                                 {showVariablesHelper && (
-                                                    <div className="mb-4 bg-neutral-800 rounded-lg p-4 border border-neutral-700">
-                                                        <h4 className="text-white font-medium mb-3 flex items-center gap-2">
+                                                    <div className="mb-4 bg-neutral-800 rounded-lg p-3 sm:p-4 border border-neutral-700">
+                                                        <h4 className="text-white font-medium mb-3 flex items-center gap-2 text-sm">
                                                             <FileText className="h-4 w-4 text-blue-400" />
                                                             Variáveis Disponíveis
                                                         </h4>
-                                                        <div className="grid grid-cols-1 gap-4 max-h-48 overflow-y-auto">
+                                                        <div className="grid grid-cols-1 gap-3 sm:gap-4 max-h-32 sm:max-h-48 overflow-y-auto">
                                                             <div>
                                                                 <h5 className="text-xs font-semibold text-neutral-300 uppercase tracking-wide mb-2 flex items-center gap-1">
                                                                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                                                    Dados do Contato e Empresa
+                                                                    Dados do Contato
                                                                 </h5>
                                                                 <div className="flex flex-wrap gap-1">
-                                                                    {commonVariables.filter(v => v.category === 'prospect').map((variable) => (
+                                                                    {commonVariables.filter(v => v.category === 'prospect').slice(0, 6).map((variable) => (
                                                                         <button
                                                                             key={variable.name}
                                                                             type="button"
@@ -1472,54 +1465,16 @@ export default function Templates() {
                                                             </div>
                                                             <div>
                                                                 <h5 className="text-xs font-semibold text-neutral-300 uppercase tracking-wide mb-2 flex items-center gap-1">
-                                                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                                                    Contexto do Negócio
-                                                                </h5>
-                                                                <div className="flex flex-wrap gap-1">
-                                                                    {commonVariables.filter(v => v.category === 'business').map((variable) => (
-                                                                        <button
-                                                                            key={variable.name}
-                                                                            type="button"
-                                                                            onClick={() => insertVariable(variable.name)}
-                                                                            className="px-2 py-1 bg-green-900/30 text-green-300 rounded text-xs hover:bg-green-900/50 transition-colors cursor-pointer border border-green-700/30"
-                                                                            title={variable.label}
-                                                                        >
-                                                                            {`{{${variable.name}}}`}
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <h5 className="text-xs font-semibold text-neutral-300 uppercase tracking-wide mb-2 flex items-center gap-1">
                                                                     <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                                                                    Dados do Remetente
+                                                                    Remetente
                                                                 </h5>
                                                                 <div className="flex flex-wrap gap-1">
-                                                                    {commonVariables.filter(v => v.category === 'sender').map((variable) => (
+                                                                    {commonVariables.filter(v => v.category === 'sender').slice(0, 4).map((variable) => (
                                                                         <button
                                                                             key={variable.name}
                                                                             type="button"
                                                                             onClick={() => insertVariable(variable.name)}
                                                                             className="px-2 py-1 bg-purple-900/30 text-purple-300 rounded text-xs hover:bg-purple-900/50 transition-colors cursor-pointer border border-purple-700/30"
-                                                                            title={variable.label}
-                                                                        >
-                                                                            {`{{${variable.name}}}`}
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <h5 className="text-xs font-semibold text-neutral-300 uppercase tracking-wide mb-2 flex items-center gap-1">
-                                                                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                                                                    Agendamento e CTA
-                                                                </h5>
-                                                                <div className="flex flex-wrap gap-1">
-                                                                    {commonVariables.filter(v => v.category === 'meeting' || v.category === 'cta').map((variable) => (
-                                                                        <button
-                                                                            key={variable.name}
-                                                                            type="button"
-                                                                            onClick={() => insertVariable(variable.name)}
-                                                                            className="px-2 py-1 bg-orange-900/30 text-orange-300 rounded text-xs hover:bg-orange-900/50 transition-colors cursor-pointer border border-orange-700/30"
                                                                             title={variable.label}
                                                                         >
                                                                             {`{{${variable.name}}}`}
@@ -1535,6 +1490,7 @@ export default function Templates() {
                                                     value={formData.htmlContent}
                                                     onChange={(value) => setFormData(prev => ({ ...prev, htmlContent: value }))}
                                                     placeholder="Digite ou cole o código HTML aqui..."
+                                                    className="h-48 sm:h-auto"
                                                 />
                                             </div>
                                         </div>
@@ -1542,8 +1498,8 @@ export default function Templates() {
                                 </div>
 
                                 {/* Right Side - Preview */}
-                                <div className="w-1/2 flex flex-col">
-                                    <div className="flex-1">
+                                <div className="w-full lg:w-1/2 flex flex-col">
+                                    <div className="flex-1 min-h-0">
                                         <EmailTemplatePreview
                                             sendType="individual"
                                             selectedTemplate={mockTemplate}
@@ -1559,12 +1515,12 @@ export default function Templates() {
                             </div>
 
                             {/* Modal Footer */}
-                            <div className="px-6 py-4 border-t border-neutral-700 bg-neutral-800/30 rounded-b-xl">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
+                            <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-neutral-700 bg-neutral-800/30 rounded-b-xl">
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 order-2 sm:order-1">
                                         <button
                                             onClick={() => copyTemplate(formData.htmlContent, selectedTemplate.id)}
-                                            className="flex items-center gap-2 px-4 py-2.5 bg-neutral-700 text-neutral-300 rounded-lg hover:bg-neutral-600 transition-colors border border-neutral-600 cursor-pointer font-medium"
+                                            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-neutral-700 text-neutral-300 rounded-lg hover:bg-neutral-600 transition-colors border border-neutral-600 cursor-pointer font-medium text-sm"
                                         >
                                             {copiedTemplate === selectedTemplate.id ? (
                                                 <>
@@ -1578,22 +1534,22 @@ export default function Templates() {
                                                 </>
                                             )}
                                         </button>
-                                        <div className="text-sm text-neutral-400">
+                                        <div className="text-xs sm:text-sm text-neutral-400 text-center sm:text-left">
                                             * Campos obrigatórios
                                         </div>
                                     </div>
-                                    <div className="flex gap-3">
+                                    <div className="flex gap-2 sm:gap-3 order-1 sm:order-2">
                                         <button
                                             type="button"
                                             onClick={closeModals}
-                                            className="px-6 py-2.5 bg-neutral-700 text-neutral-300 rounded-lg hover:bg-neutral-600 transition-colors border border-neutral-600 cursor-pointer font-medium"
+                                            className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 bg-neutral-700 text-neutral-300 rounded-lg hover:bg-neutral-600 transition-colors border border-neutral-600 cursor-pointer font-medium text-sm"
                                         >
                                             Cancelar
                                         </button>
                                         <button
                                             type="submit"
                                             onClick={handleEdit}
-                                            className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all cursor-pointer font-medium shadow-lg"
+                                            className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all cursor-pointer font-medium shadow-lg text-sm"
                                         >
                                             Salvar Alterações
                                         </button>
@@ -1609,26 +1565,26 @@ export default function Templates() {
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                         <div className="bg-neutral-900 rounded-lg max-w-md w-full border border-neutral-700">
                             {/* Modal Header */}
-                            <div className="p-6 border-b border-neutral-700">
-                                <h2 className="text-xl font-bold text-white">
+                            <div className="p-4 sm:p-6 border-b border-neutral-700">
+                                <h2 className="text-lg sm:text-xl font-bold text-white">
                                     Confirmar Exclusão
                                 </h2>
                             </div>
 
                             {/* Modal Content */}
-                            <div className="p-6">
-                                <div className="flex items-center gap-4 mb-6">
-                                    <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
-                                        <Trash2 className="h-6 w-6 text-white" />
+                            <div className="p-4 sm:p-6">
+                                <div className="flex items-start gap-4 mb-4 sm:mb-6">
+                                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <Trash2 className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                                     </div>
-                                    <div>
-                                        <p className="text-white font-medium mb-1">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-white font-medium mb-1 text-sm sm:text-base">
                                             {confirmAction.type === 'single'
                                                 ? 'Deletar template?'
                                                 : `Deletar ${confirmAction.count} templates?`
                                             }
                                         </p>
-                                        <p className="text-neutral-400 text-sm">
+                                        <p className="text-neutral-400 text-xs sm:text-sm">
                                             {confirmAction.type === 'single'
                                                 ? 'Esta ação não pode ser desfeita.'
                                                 : `Todos os ${confirmAction.count} templates selecionados serão deletados permanentemente.`
@@ -1639,18 +1595,18 @@ export default function Templates() {
                             </div>
 
                             {/* Modal Footer */}
-                            <div className="p-6 border-t border-neutral-700 flex items-center justify-end gap-3">
+                            <div className="p-4 sm:p-6 border-t border-neutral-700 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
                                 <button
                                     onClick={closeConfirmModal}
                                     disabled={deleting}
-                                    className="px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition-colors border border-neutral-600 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                                    className="order-2 sm:order-1 px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition-colors border border-neutral-600 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed text-sm"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     onClick={confirmAction.onConfirm}
                                     disabled={deleting}
-                                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                                    className="order-1 sm:order-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed text-sm"
                                 >
                                     {deleting ? 'Deletando...' : 'Deletar'}
                                 </button>
