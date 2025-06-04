@@ -5,10 +5,10 @@ import { isValidEmailClient, isValidReferrer, getNextStatus, validateTrackingTok
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: Promise<{ trackingId: string }> }
+    { params }: { params: { trackingId: string } }
 ) {
     try {
-        const { trackingId } = await params;
+        const { trackingId } = params;
         const { searchParams } = new URL(request.url);
         const originalUrl = searchParams.get('url');
         const token = searchParams.get('t');
